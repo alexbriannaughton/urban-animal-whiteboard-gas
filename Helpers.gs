@@ -19,22 +19,6 @@ function getTime(timestamp) {
   return hour + ":" + minute;
 }
 
-// get hour and minute from JS Date object
-function getJSTime() {
-  const currentDate = new Date(Date.now());
-
-  let hours = currentDate.getHours();
-  let minutes = currentDate.getMinutes();
-
-  hours = hours % 12 || 12; // Handle 0 and 12 as 12
-  minutes = minutes < 10 ? `0${minutes}` : minutes;
-
-  // Display the time
-  const time12HourFormat = `${hours}:${minutes}`;
-
-  return time12HourFormat;
-}
-
 // check which urban animal facility based on appointment resource id
 function whichLocation(resourceID) {
 
@@ -57,9 +41,9 @@ function whichLocation(resourceID) {
   // WC Procedure 1, 2 = 61, 62
   const wcResourceIDs = [1083, 60, 39, 59, 1384, 61, 62];
 
-  if (chResourceIDs.includes(resourceID)) return "CH"
-  else if (dtResourceIDs.includes(resourceID)) return "DT"
-  else if (wcResourceIDs.includes(resourceID)) return "WC"
+  if (chResourceIDs.includes(resourceID)) return "CH";
+  else if (dtResourceIDs.includes(resourceID)) return "DT";
+  else if (wcResourceIDs.includes(resourceID)) return "WC";
 }
 
 // store info from /animal endpoint
@@ -75,9 +59,9 @@ function getAnimalInfo(animalID) {
   const json = response.getContentText();
   const animal = JSON.parse(json).items[0].animal;
 
-  const species = animal.species_id === '1' ? "K9" : "FEL"
+  const species = animal.species_id === '1' ? "K9" : "FEL";
 
-  return [animal.name, species]
+  return [animal.name, species];
 }
 
 function getLastName(contactID) {
@@ -92,7 +76,7 @@ function getLastName(contactID) {
   const json = response.getContentText();
   const lastName = JSON.parse(json).items[0].contact.last_name;
 
-  return lastName
+  return lastName;
 }
 
 function makeLink(text, webAddress) {
@@ -119,7 +103,7 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
   let cell = sheet.getRange(`${cols[0]}${row}:${cols[1]}${row}`);
 
   while (!cell.isBlank()) {
-    // if a animalName and lastName is provided, we are checking to see if the name is already somewhere in the column
+    // if a animalName and lastName is provided, we are checking to see if the pet is already somewhere in the column
     if (animalName && lastName) {
       if (cell.getValue().includes(`${animalName} ${lastName}`)) {
         return [];
@@ -128,7 +112,7 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
 
     row++;
 
-    // dont do anything if the box/column is full
+    // return empty array to properly handle if the box/column is full
     if (row > rowLimit) return [];
     
     cell = sheet.getRange(`${cols[0]}${row}:${cols[1]}${row}`);
@@ -139,6 +123,22 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
 
 
 // below this line are currently unused functions.
+
+// get hour and minute from JS Date object
+// function getJSTime() {
+//   const currentDate = new Date(Date.now());
+
+//   let hours = currentDate.getHours();
+//   let minutes = currentDate.getMinutes();
+
+//   hours = hours % 12 || 12; // Handle 0 and 12 as 12
+//   minutes = minutes < 10 ? `0${minutes}` : minutes;
+
+//   // Display the time
+//   const time12HourFormat = `${hours}:${minutes}`;
+
+//   return time12HourFormat;
+// }
 
 // function createDropdown(choicesArray) {
 //   return SpreadsheetApp

@@ -34,7 +34,7 @@ function findCellsOnSpreadsheet(status_id, location) {
     }
   }
 
-  return cellCoords
+  return cellCoords;
 }
 
 function colorRoom(sheet, row, column, typeID) {
@@ -70,7 +70,7 @@ function moveToRoom(appointment) {
 
   // dont do anything if there is something already in this room
   if (!sheet.getRange(`${column}${row}:${column}${row + 5}`).isBlank()) {
-    return
+    return;
   };
 
   colorRoom(sheet, row, column, appointment.type_id);
@@ -82,9 +82,9 @@ function moveToRoom(appointment) {
     .setValue(getTime(appointment.modified_at));
 
   // name/species/link cell
-  const text = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`
-  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`
-  const link = makeLink(text, webAddress)
+  const text = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
+  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
+  const link = makeLink(text, webAddress);
   sheet.getRange(`${column}${row + 1}`)
     .setRichTextValue(link);
 

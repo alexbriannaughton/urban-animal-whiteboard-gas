@@ -42,48 +42,8 @@ function addToWaitlist(appointment) {
   createCheckboxCell(waitlistSheet, newRow, true);
 }
 
-// for manually adding patients to waitlist
-// this isn't being used. i think it would require giving everyone direct access to the apps script
-// function addRow() {
-//   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-//   const newRow = sheet.getLastRow() + 1;
-
-//   // current time
-//   createTimeCell(sheet, newRow, getJSTime())
-
-//   // patient
-//   createPatientCell(sheet, newRow);
-
-//   // cat or dog
-//   createSpeciesCell(sheet, newRow);
-
-//   // format notes/triaged/phone sections.
-//   formatCell(
-//     sheet.getRange('F' + newRow + ':H' + newRow)
-//   );
-
-//   // no need to create triage dropdown.
-//   // sheet will try to format like cells above it, and the dropdown from the sheet UI looks better.
-//   // createTriageDropdown(sheet, newRow);
-
-//   // reason for visit
-//   createReasonCell(sheet, newRow);
-
-//   // in ezyVet ?
-//   createCheckboxCell(sheet, newRow, false)
-// }
-
 
 // here down is for formatting/inserting content into each individual cell on the waitlist
-
-
-// this is currently unused. using dropdown created directly from Sheet UI instead.
-function createTriageDropdown(sheet, newRow) {
-  const triageDropdown = createDropdown(['Triaging', 'Bumped', 'OKTW', 'Declined'])
-  sheet
-    .getRange('G' + newRow)
-    .setDataValidation(triageDropdown);
-}
 
 function createTimeCell(sheet, newRow, time) {
   formatCell(
@@ -132,3 +92,42 @@ function createCheckboxCell(sheet, newRow, ifChecked) {
   cell.setDataValidation(rule);
   cell.setValue(ifChecked);
 }
+
+// this is currently unused. using dropdown created directly from Sheet UI instead.
+// function createTriageDropdown(sheet, newRow) {
+//   const triageDropdown = createDropdown(['Triaging', 'Bumped', 'OKTW', 'Declined'])
+//   sheet
+//     .getRange('G' + newRow)
+//     .setDataValidation(triageDropdown);
+// }
+
+// for manually adding patients to waitlist
+// this isn't being used. i think it would require giving everyone direct access to the apps script
+// function addRow() {
+//   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+//   const newRow = sheet.getLastRow() + 1;
+
+//   // current time
+//   createTimeCell(sheet, newRow, getJSTime())
+
+//   // patient
+//   createPatientCell(sheet, newRow);
+
+//   // cat or dog
+//   createSpeciesCell(sheet, newRow);
+
+//   // format notes/triaged/phone sections.
+//   formatCell(
+//     sheet.getRange('F' + newRow + ':H' + newRow)
+//   );
+
+//   // no need to create triage dropdown.
+//   // sheet will try to format like cells above it, and the dropdown from the sheet UI looks better.
+//   // createTriageDropdown(sheet, newRow);
+
+//   // reason for visit
+//   createReasonCell(sheet, newRow);
+
+//   // in ezyVet ?
+//   createCheckboxCell(sheet, newRow, false)
+// }

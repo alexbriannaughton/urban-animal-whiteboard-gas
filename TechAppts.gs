@@ -5,7 +5,7 @@ function addTechAppt(appointment) {
 
   if (location === 'CH') {
     // ch tech appointments column has three cells that are merged so it requires unique handling
-    return addCHTechAppt(appointment, locationSheet)
+    return addCHTechAppt(appointment, locationSheet);
   }
 
   else {
@@ -39,9 +39,9 @@ function addTechAppt(appointment) {
     const animalInfo = getAnimalInfo(appointment.animal_id);
 
     // add name and reason with a link to clinical record to mainCell
-    const text = `${animalInfo[0]} (${animalInfo[1]}), ${appointment.description}`
-    const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`
-    const link = makeLink(text, webAddress)
+    const text = `${animalInfo[0]} (${animalInfo[1]}), ${appointment.description}`;
+    const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
+    const link = makeLink(text, webAddress);
     mainCell.setRichTextValue(link);
 
     // find column to left of mainCell and add time
@@ -60,15 +60,15 @@ function addTechAppt(appointment) {
 // bc of the merged cells in the tech column on the CH page, adding tech requires its own handling
 function addCHTechAppt(appointment, locationSheet) {
   // grab highest available cell in tech column
-  const [mainCell, row] = findHighestMergedCell(locationSheet, ['L', 'N'], 5, 21)
+  const [mainCell, row] = findHighestMergedCell(locationSheet, ['L', 'N'], 5, 21);
 
   // get the animal's info
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
   // add name and reason with a link to clinical record
-  const text = `${animalName} (${animalSpecies}), ${appointment.description}`
-  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`
-  const link = makeLink(text, webAddress)
+  const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
+  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
+  const link = makeLink(text, webAddress);
   mainCell.setRichTextValue(link);
 
   // add time to column k

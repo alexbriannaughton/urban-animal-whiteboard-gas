@@ -8,7 +8,7 @@ function addInPatient(appointment) {
 
   if (location === 'CH') {
 
-    const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName)
+    const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
 
     // if name cell doesnt exist that means there's no room in the in patient box.
     // in that case dont do anything
@@ -29,7 +29,7 @@ function addInPatient(appointment) {
 
   else {
     // else, its either at DT or WC and their inpatient box is in the same cell coordinates
-    const [nameCell, row] = findHighestMergedCell(locationSheet, ['B', 'C'], 14, 29, animalName, lastName)
+    const [nameCell, row] = findHighestMergedCell(locationSheet, ['B', 'C'], 14, 29, animalName, lastName);
 
     if (nameCell) {
       populateInpatientRow(
@@ -58,8 +58,8 @@ function getTodaysAppointments() {
   };
   const response = UrlFetchApp.fetch(url, options);
   const json = response.getContentText();
-  const appts = JSON.parse(json)
-  checkIfProcedure(appts.items)
+  const appts = JSON.parse(json);
+  checkIfProcedure(appts.items);
 }
 
 function checkIfProcedure(arr) {
@@ -122,7 +122,7 @@ function addScheduledProcedures(
       sheet,
       procedure.description,
       reasonCols
-    )
+    );
 
     row++;
   }

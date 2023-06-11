@@ -1,11 +1,11 @@
-const token = PropertiesService.getScriptProperties().getProperty('ezyVet_token')
-const proxy = 'https://api.ezyvet.com'
-const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com/'
+const token = PropertiesService.getScriptProperties().getProperty('ezyVet_token');
+const proxy = 'https://api.ezyvet.com';
+const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com/';
 
 // this runs with a weekly trigger
 function updateToken() {
   const url = `${proxy}/v2/oauth/access_token`;
-  const props = PropertiesService.getScriptProperties()
+  const props = PropertiesService.getScriptProperties();
   const payload = {
     partner_id: props.getProperty('partner_id'),
     client_id: props.getProperty('client_id'),
@@ -52,7 +52,6 @@ function doPost(e) {
     }
 
     // or, if it's an appointment_updated webhook event (that's happening today)
-    // right now, we only care about appointment_updated events when they have moved into a room
     else if (params.meta.event === "appointment_updated") {
       // if the appointment has a status of being in a room
       if (appointment.status_id === 18 || (appointment.status_id >= 25 && appointment.status_id <= 33)) {
