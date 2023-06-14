@@ -8,41 +8,43 @@ function addInPatient(appointment) {
 
   if (location === 'CH') {
 
+    
+
     const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
 
     // if name cell doesnt exist that means there's no room in the in patient box.
     // in that case dont do anything
-    if (nameCell) {
-      populateInpatientRow(
-        animalName,
-        animalSpecies,
-        lastName,
-        appointment.consult_id,
-        nameCell,
-        row,
-        locationSheet,
-        appointment.description,
-        ['U', 'V']
-      );
-    }
+    if (!nameCell) return;
+
+    populateInpatientRow(
+      animalName,
+      animalSpecies,
+      lastName,
+      appointment.consult_id,
+      nameCell,
+      row,
+      locationSheet,
+      appointment.description,
+      ['U', 'V']
+    );
   }
 
   else {
     // else, its either at DT or WC and their inpatient box is in the same cell coordinates
-    const [nameCell, row] = findHighestMergedCell(locationSheet, ['B', 'C'], 14, 29, animalName, lastName);
+    const [nameCell, row] = findHighestMergedCell(locationSheet, ['B', 'C'], 14, 40, animalName, lastName);
 
-    if (nameCell) {
-      populateInpatientRow(
-        animalName,
-        animalSpecies,
-        lastName,
-        appointment.consult_id,
-        nameCell,
-        row,
-        locationSheet,
-        appointment.description
-      );
-    }
+    if (!nameCell) return;
+
+    populateInpatientRow(
+      animalName,
+      animalSpecies,
+      lastName,
+      appointment.consult_id,
+      nameCell,
+      row,
+      locationSheet,
+      appointment.description
+    );
   }
 }
 
@@ -65,14 +67,15 @@ function getTodaysAppointments() {
 function checkIfProcedure(arr) {
   // resource IDS, i.e. the procedure columns in ezyVet calendar:
   // WC Procedure 1, 2 = 61, 62
-  // CH Procedure 1, 2 = 29, 30
+  // CH Procedure 1, 2 = 29, 30, IM = 65, 27
   // DT Procedure 1, 2 = 57, 58
-  const chProcedureIDs = ['29', '30'];
-  const chProcedures = [];
+  const chProcedureIDs = ['29', '30', '65', '27'];
+  const chProcedures = [{}];
   const dtProcedureIDs = ['57', '58'];
-  const dtProcedures = [];
+  const dtProcedures = [{}];
   const wcProcedureIDs = ['61', '62'];
-  const wcProcedures = [];
+  const wcProcedures = [{}];
+  // initializing with empty array so that sort/colorize method will be hit even if only one procedure
 
   arr.forEach((appt) => {
     const resourceID = appt.appointment.details.resource_list[0];
@@ -87,7 +90,7 @@ function checkIfProcedure(arr) {
     }
   })
 
-  sortProcedures([chProcedures, dtProcedures, wcProcedures]);
+  sortAndColorProcedures([chProcedures, dtProcedures, wcProcedures]);
 
   addScheduledProcedures(chProcedures, 'CH', ['R', 'S'], 3, ['U', 'V']);
   addScheduledProcedures(dtProcedures, 'DT');
@@ -106,6 +109,13 @@ function addScheduledProcedures(
 
   for (let i = 0; i < procedureArr.length; i++) {
     const procedure = procedureArr[i];
+
+    // skip the empty object
+    if (!procedure.animal_id) continue;
+
+    const lastCol = String.fromCharCode(nameCols[0].charCodeAt(0) + 6);
+    sheet.getRange(`${nameCols[0]}${row}:${lastCol}${row}`)
+      .setBackground(procedure.color);
 
     const [animalName, animalSpecies] = getAnimalInfo(procedure.animal_id);
     const lastName = getLastName(procedure.contact_id);
@@ -150,23 +160,57 @@ function populateInpatientRow(
 }
 
 // sort all procedures according to type_id unless its dental. dentals go last
-function sortProcedures(locsProcsArray) {
+function sortAndColorProcedures(locsProcsArray) {
+  // surgery types = surgery, spay/neuter
+  const sxTypeIDs = ['7', '76'];
+  const ausTypeID = '29';
+  const echoTypeID = '30';
+  // secondary procedures = acth stim, bile acids, drop off, bgc, hosp patient, lddst, sedated procedure, walk in
+  const secondaryTypeIDs = ['31', '32', '82', '33', '83', '38', '36', '37'];
+  const dentalTypeID = '28';
+  const imTypeIDs = ['26', '34', '27', '35'];
+  const healthCertID = '81';
+
+  function getSortValue(procedure) {
+    // this function also adds a color to the procedure/appointment object
+    const typeID = procedure.appointment_type_id;
+    if (typeID === ausTypeID) {
+      procedure.color = '#f4cccc';
+      return 0;
+    }
+    else if (typeID === echoTypeID) {
+      procedure.color = '#f4cccc';
+      return 1;
+    }
+    else if (sxTypeIDs.includes(typeID)) {
+      procedure.color = '#d9ead3';
+      return 2;
+    }
+    else if (secondaryTypeIDs.includes(typeID)) {
+      procedure.color = '#fce5cd';
+      return 3;
+    }
+    else if (typeID === dentalTypeID) {
+      procedure.color = '	#cfe2f3';
+      return 4;
+    }
+    else if (imTypeIDs.includes(typeID)) {
+      procedure.color = '#d9d2e9';
+      return 5;
+    }
+    else if (typeID === healthCertID) {
+      procedure.color = '#fff2cc';
+      return 6;
+    }
+    else {
+      procedure.color = '#f3f3f3';
+      return 7; // Assign a higher value for any other type_id not covered
+    }
+  }
+
   for (let i = 0; i < locsProcsArray.length; i++) {
     const locationProcedures = locsProcsArray[i];
-    locationProcedures.sort((a, b) => {
-      const a1 = a.appointment_type_id;
-      const b1 = b.appointment_type_id;
-
-      if (a1 === '28') {
-        return 1;
-      }
-      else if (b1 === '28') {
-        return -1;
-      }
-      else {
-        return a1 - b1;
-      }
-    });
+    locationProcedures.sort((a, b) => getSortValue(a) - getSortValue(b));
   }
 }
 

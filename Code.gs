@@ -57,9 +57,22 @@ function doPost(e) {
       if (appointment.status_id === 18 || (appointment.status_id >= 25 && appointment.status_id <= 33)) {
         moveToRoom(appointment);
       }
+
+      // if it has a ready status
+      else if (appointment.status_id === 22) {
+        handleReadyStatus(appointment);
+      }
+
+      // 34 is inpatient status
       else if (appointment.status_id === 34) {
         addInPatient(appointment);
       }
+    }
+    
+    const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384];
+    // if it has a specific doctor resource, assign that doctor on the room
+    if (dvmResourceIDs.includes(appointment.resources[0].id)) {
+      assignDvm(appointment);
     }
   }
 

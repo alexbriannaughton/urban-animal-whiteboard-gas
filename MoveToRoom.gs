@@ -48,33 +48,51 @@ function getRoomColor(typeID) {
   if (typeID === 19) return '#90EE90';
 
   // if it's IM make the background purple
-  if (typeID === 26 || typeID === 34) return '#D8BFD8';
+  const imTypeIDs = [26, 34, 27, 35];
+  if (imTypeIDs.includes(typeID)) return '#d9d2e9';
+
+  // if it's a pet with a procedure make the background orange
+  const procedureTypes = [31, 32, 28, 82, 30, 33, 83, 38, 36, 76, 7, 29, 81];
+  if (procedureTypes.includes(typeID)) return '#fce5cd';
+
+  // if it's a euthanasia make the background blue
+  if (typeID === 80) return '#cfe2f3';
 
   // else do the standard gray
-  return '#f3f3f3'
+  return '#f3f3f3';
 }
 
 function techText(typeID) {
   return typeID === 19 ? "TECH: " : "";
 }
 
+function stopMovingToRoom(appointment) {
+  // add it to the waitlist if it was just created
+  if (appointment.created_at === appointment.modified_at) {
+    addToWaitlist(appointment);
+  }
+  // stop running the moveToRoom() function
+  return;
+}
+
 function moveToRoom(appointment) {
   const location = whichLocation(appointment.resources[0].id);
 
-  // dont do anything if it's for a room that doesnt exist
-  if (appointment.status_id >= 31 && location === 'DT') return;
-  if (appointment.status_id >= 29 && location === 'WC') return;
+  // if we're moving into a room that doesn't exist, don't
+  if (appointment.status_id >= 31 && location === 'DT' || appointment.status_id >= 29 && location === 'WC') {
+    return stopMovingToRoom(appointment);
+  }
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
   const { row, column } = findCellsOnSpreadsheet(appointment.status_id, location);
 
-  // dont do anything if there is something already in this room
+  // if there is something already in this room, stop
   if (!sheet.getRange(`${column}${row}:${column}${row + 5}`).isBlank()) {
-    return;
+    return stopMovingToRoom(appointment);
   };
 
   colorRoom(sheet, row, column, appointment.type_id);
-  
+
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
   // time cell
@@ -106,7 +124,6 @@ function deleteFromWaitlist(location, consultID) {
     const link = nameCell.getRichTextValue().getLinkUrl();
     if (link.includes(consultID)) {
       waitlist.deleteRow(row);
-      break;
     }
     row++;
     nameCell = waitlist.getRange(`C${row}:D${row}`);

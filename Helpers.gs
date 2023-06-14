@@ -114,11 +114,41 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
 
     // return empty array to properly handle if the box/column is full
     if (row > rowLimit) return [];
-    
+
     cell = sheet.getRange(`${cols[0]}${row}:${cols[1]}${row}`);
   }
 
   return [cell, row];
+}
+
+// searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link
+// returns the coords for cell that we want to manipulate
+function findRoomCell(location, sheet, consultID, distanceBelowMain) {
+  const possMainCoords = ['C4', 'D4', 'E4', 'F4', 'G4'];
+
+  if (location === 'DT') {
+    possMainCoords.push('H4', 'I4');
+  }
+  else if (location === 'CH') {
+    possMainCoords.push('H4', 'I4', 'C14', 'D14', 'E14', 'F14', 'G14', 'H14');
+  }
+
+  let resCoords;
+
+  for (let i = 0; i < possMainCoords.length; i++) {
+    const curCoords = possMainCoords[i];
+    const cell = sheet.getRange(curCoords);
+    const link = cell.getRichTextValue().getLinkUrl();
+
+    if (link && link.includes(consultID)) {
+      const row = parseInt(curCoords.slice(1)) + distanceBelowMain;
+      resCoords = `${curCoords[0]}${row}`;
+      break;
+    }
+  }
+
+  if (!resCoords) return;
+  return sheet.getRange(resCoords);
 }
 
 

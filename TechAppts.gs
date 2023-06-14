@@ -62,6 +62,9 @@ function addCHTechAppt(appointment, locationSheet) {
   // grab highest available cell in tech column
   const [mainCell, row] = findHighestMergedCell(locationSheet, ['L', 'N'], 5, 21);
 
+  // don't do anything if there's no room in tech column
+  if (!mainCell) return;
+
   // get the animal's info
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
