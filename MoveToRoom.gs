@@ -7,7 +7,95 @@
 // appointment.status_id 30 = room 7 = CH: D13, D14, D15, DT: I3, I4, I5
 // appointment.status_id 31 = room 8 = CH: E13, E14, E15 
 // appointment.status_id 32 = room 9 = CH: F13, F14, F15 
-// appointment.status_id 33 = room10 = CH: G13, G14, G15 
+// appointment.status_id 33 = room10 = CH: G13, G14, G15
+// appointment.status_id 36 = room11 = CH: H13, H14, H15
+
+function moveToRoom(appointment) {
+  const location = whichLocation(appointment.resources[0].id);
+
+  // if we're moving into a room that doesn't exist, don't
+  if (appointment.status_id >= 31 && location === 'DT' || appointment.status_id >= 29 && location === 'WC') {
+    return stopMovingToRoom(appointment);
+  }
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
+  const { row, column } = findCellsOnSpreadsheet(appointment.status_id, location);
+
+  const curPtCell = sheet.getRange(`${column}${row + 1}`);
+
+  const curLink = curPtCell.getRichTextValue().getLinkUrl() || undefined;
+
+  // if it's already in the room, don't worry about it
+  if (curLink && curLink.includes(appointment.consult_id)) return;
+
+  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+
+  const animalText = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
+
+  // if the current patient name cell already has something in
+  // check if the animal has the same contact ID as the one we're requesting to put in it
+  if (!curPtCell.isBlank()) {
+    // if the current text in the patient cell is text without a link, return so we don't overwrite it
+    if (!curLink) return;
+
+    // another check to see if it's already in the room, since multiple pet room will not carry the consult id
+    if (curPtCell.getValue().includes(animalText)) return;
+
+    // grab the id at the end of the link
+    const curID = curLink.split('=')[2];
+
+    let curContactID;
+    let alreadyMultiplePets = false;
+
+    // if this link is a contact id, that means there are already multiple pets in this room, and we already have the contact id
+    if (curLink.includes('Contact')) {
+      curContactID = curID;
+      alreadyMultiplePets = true;
+    }
+    // otherwise there's only one pet and we should have the consult id
+    // which we'll use to find the contact id
+    else curContactID = fetch1(curID);
+
+    // if that contact id matches the contact id of the appointment we're trying to move to this room, handle a multiple pet room
+    if (parseInt(curContactID) === appointment.contact_id) {
+      handleMultiplePetRoom(
+        curContactID,
+        appointment.description,
+        animalText,
+        curPtCell,
+        sheet.getRange(`${column}${row + 2}`,),
+        alreadyMultiplePets,
+        sheet.getRange(`${column}${row}:${column}${row + 7}`)
+      );
+      deleteFromWaitlist(location, appointment.consult_id);
+    }
+
+    // otherwise dont do anything because
+    // 1, the room is taken so we cannot room into this room
+    // or 2, we are handling a two pet room
+    return stopMovingToRoom(appointment);
+  }
+
+  colorRoom(sheet, row, column, appointment.type_id);
+
+  // time cell
+  sheet.getRange(`${column}${row}`)
+    .setValue(getTime(appointment.modified_at));
+
+  // name/species/link cell
+  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
+  const link = makeLink(animalText, webAddress);
+  sheet.getRange(`${column}${row + 1}`)
+    .setRichTextValue(link);
+
+  // reason cell
+  sheet.getRange(`${column}${row + 2}`)
+    .setValue(`${appointment.description}`);
+
+  // delete from the waitlist
+  // const lastName = getLastName(appointment.contact_id);
+  deleteFromWaitlist(location, appointment.consult_id);
+}
 
 function findCellsOnSpreadsheet(status_id, location) {
   // we have already weeded out rooms that do not exist
@@ -16,7 +104,13 @@ function findCellsOnSpreadsheet(status_id, location) {
   // if it's CH rooms 6 - 11. handle for the lower columns
   if (status_id >= 29 && location === 'CH') {
     cellCoords.row = 13;
-    cellCoords.column = String.fromCharCode(status_id + 38);
+
+    // room 11 status id = 36, and it doesn't work with the above column code
+    if (status_id === 36) {
+      cellCoords.column = 'H'
+    }
+
+    else cellCoords.column = String.fromCharCode(status_id + 38);
   }
 
   // else, coords are handled similarly at all locations
@@ -28,10 +122,8 @@ function findCellsOnSpreadsheet(status_id, location) {
       cellCoords.column = 'C';
     }
 
-    else {
-      cellCoords.column = String.fromCharCode(status_id + 43);
-      // 43 = status_id - correct column letter's CharCode
-    }
+    else cellCoords.column = String.fromCharCode(status_id + 43);
+    // 43 = status_id - correct column letter's CharCode
   }
 
   return cellCoords;
@@ -63,7 +155,7 @@ function getRoomColor(typeID) {
 }
 
 function techText(typeID) {
-  return typeID === 19 ? "TECH: " : "";
+  return typeID === 19 ? "TECH - " : "";
 }
 
 function stopMovingToRoom(appointment) {
@@ -71,48 +163,62 @@ function stopMovingToRoom(appointment) {
   if (appointment.created_at === appointment.modified_at) {
     addToWaitlist(appointment);
   }
-  // stop running the moveToRoom() function
-  return;
 }
 
-function moveToRoom(appointment) {
-  const location = whichLocation(appointment.resources[0].id);
+function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reasonCell, alreadyMultiplePets, fullRoomCells) {
+  const curAnimalText = ptCell.getValue();
+  const curAnimalReasonText = reasonCell.getValue();
 
-  // if we're moving into a room that doesn't exist, don't
-  if (appointment.status_id >= 31 && location === 'DT' || appointment.status_id >= 29 && location === 'WC') {
-    return stopMovingToRoom(appointment);
+  if (!curAnimalText.includes('TECH:')) {
+    fullRoomCells.setBackground('#f3f3f3');
   }
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
-  const { row, column } = findCellsOnSpreadsheet(appointment.status_id, location);
+  const newPtCellText = `${curAnimalText} / ${newAnimalText}`;
+  const webAddress = `${sitePrefix}/?recordclass=Contact&recordid=${contactID}`;
+  const link = makeLink(newPtCellText, webAddress);
+  ptCell.setRichTextValue(link);
 
-  // if there is something already in this room, stop
-  if (!sheet.getRange(`${column}${row}:${column}${row + 5}`).isBlank()) {
-    return stopMovingToRoom(appointment);
+  let reasonText;
+
+  if (alreadyMultiplePets) {
+    reasonText = `${curAnimalReasonText},\n${newAnimalText.split("(")[0]}: ${newReason}`;
+  }
+  else reasonText = `${curAnimalText.split("(")[0]}: ${curAnimalReasonText},\n${newAnimalText.split("(")[0]}: ${newReason}`;
+
+  reasonCell.setValue(reasonText);
+}
+
+// fetch1 retreives a animal_id based on a consult_id
+function fetch1(consultID) {
+  const url = `${proxy}/v1/consult/${consultID}`;
+
+  const options = {
+    method: "GET",
+    headers: {
+      authorization: token
+    }
   };
+  const response = UrlFetchApp.fetch(url, options);
+  const json = response.getContentText();
+  const consult = JSON.parse(json).items[0].consult;
 
-  colorRoom(sheet, row, column, appointment.type_id);
+  return fetch2(consult.animal_id)
+}
+// fetch2 retreives a contact id from an animal id
+function fetch2(animalID) {
+  const url = `${proxy}/v1/animal/${animalID}`
 
-  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+  const options = {
+    method: "GET",
+    headers: {
+      authorization: token
+    }
+  };
+  const response = UrlFetchApp.fetch(url, options);
+  const json = response.getContentText();
+  const animal = JSON.parse(json).items[0].animal;
 
-  // time cell
-  sheet.getRange(`${column}${row}`)
-    .setValue(getTime(appointment.modified_at));
-
-  // name/species/link cell
-  const text = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
-  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
-  const link = makeLink(text, webAddress);
-  sheet.getRange(`${column}${row + 1}`)
-    .setRichTextValue(link);
-
-  // reason cell
-  sheet.getRange(`${column}${row + 2}`)
-    .setValue(`${appointment.description}`);
-
-  // delete from the waitlist
-  // const lastName = getLastName(appointment.contact_id);
-  deleteFromWaitlist(location, appointment.consult_id);
+  return animal.contact_id;
 }
 
 function deleteFromWaitlist(location, consultID) {

@@ -123,7 +123,7 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
 
 // searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link
 // returns the coords for cell that we want to manipulate
-function findRoomCell(location, sheet, consultID, distanceBelowMain) {
+function findRoomCell(location, sheet, consultID, distanceBelowMain, contactID) {
   const possMainCoords = ['C4', 'D4', 'E4', 'F4', 'G4'];
 
   if (location === 'DT') {
@@ -133,22 +133,39 @@ function findRoomCell(location, sheet, consultID, distanceBelowMain) {
     possMainCoords.push('H4', 'I4', 'C14', 'D14', 'E14', 'F14', 'G14', 'H14');
   }
 
-  let resCoords;
+  let resCoords = checkLinksForID(possMainCoords, sheet, consultID, distanceBelowMain);
 
+  // for (let i = 0; i < possMainCoords.length; i++) {
+  //   const curCoords = possMainCoords[i];
+  //   const cell = sheet.getRange(curCoords);
+  //   const link = cell.getRichTextValue().getLinkUrl();
+
+  //   if (link && link.includes(consultID)) {
+  //     const row = parseInt(curCoords.slice(1)) + distanceBelowMain;
+  //     resCoords = `${curCoords[0]}${row}`;
+  //     break;
+  //   }
+  // }
+
+  if (!resCoords) {
+    resCoords = checkLinksForID(possMainCoords, sheet, contactID, distanceBelowMain);
+  }
+
+  // if (!resCoords) return;
+  return resCoords ? sheet.getRange(resCoords) : undefined;
+}
+
+function checkLinksForID(possMainCoords, sheet, id, distanceBelowMain) {
   for (let i = 0; i < possMainCoords.length; i++) {
     const curCoords = possMainCoords[i];
     const cell = sheet.getRange(curCoords);
     const link = cell.getRichTextValue().getLinkUrl();
 
-    if (link && link.includes(consultID)) {
+    if (link && link.includes(id)) {
       const row = parseInt(curCoords.slice(1)) + distanceBelowMain;
-      resCoords = `${curCoords[0]}${row}`;
-      break;
+      return `${curCoords[0]}${row}`;
     }
   }
-
-  if (!resCoords) return;
-  return sheet.getRange(resCoords);
 }
 
 

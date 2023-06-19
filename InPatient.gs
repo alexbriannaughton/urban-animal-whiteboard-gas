@@ -7,9 +7,6 @@ function addInPatient(appointment) {
   const lastName = getLastName(appointment.contact_id);
 
   if (location === 'CH') {
-
-    
-
     const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
 
     // if name cell doesnt exist that means there's no room in the in patient box.
@@ -100,12 +97,14 @@ function checkIfProcedure(arr) {
 // procdure cells start at B14:C14, E14:F14 for both WC and DT
 function addScheduledProcedures(
   procedureArr,
-  sheetName,
+  location,
   nameCols = ['B', 'C'],
   row = 14,
   reasonCols = ['E', 'F']
 ) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
+
+  clearInPatientBox(sheet, location)
 
   for (let i = 0; i < procedureArr.length; i++) {
     const procedure = procedureArr[i];
@@ -157,6 +156,21 @@ function populateInpatientRow(
 
   const reasonCell = locationSheet.getRange(`${reasonCols[0]}${row}:${reasonCols[1]}${row}`);
   reasonCell.setValue(description);
+}
+
+function clearInPatientBox(sheet, location) {
+  // clear the in patient box
+  let color = '#d0e0e3';
+  let inpatientBox = sheet.getRange('B14:H40');
+
+  if (location === 'CH') {
+    color = '#f3f3f3';
+    inpatientBox = sheet.getRange('R3:W23');
+  }
+  else if (location === 'WC') color = '#ead1dc';
+  
+  inpatientBox.clearContent();
+  inpatientBox.setBackground(color);
 }
 
 // sort all procedures according to type_id unless its dental. dentals go last

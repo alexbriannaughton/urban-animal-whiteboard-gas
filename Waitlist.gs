@@ -3,19 +3,24 @@ function addToWaitlist(appointment) {
   const sheetName = `${whichLocation(appointment.resources[0].id)} Wait List`;
   const waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
 
+  // this is to check for the highest empty row.
+  // it only checks if the name or the reason is empty. if they are populated, it will go to the next cell
+  let newRow = 7;
+  let rowContents1 = waitlistSheet.getRange('C7:D7');
+  let rowContents2 = waitlistSheet.getRange('I7:J7');
+  const consultID = appointment.consult_id;
+  while (!rowContents1.isBlank() || !rowContents2.isBlank()) {
+    const link = rowContents1.getRichTextValue().getLinkUrl();
+    // if we find that one of the links has the consult id, that means it's already on the waitlist
+    if (link.includes(consultID)) return; 
+    newRow++;
+    rowContents1 = waitlistSheet.getRange(`C${newRow}:D${newRow}`);
+    rowContents2 = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
+  }
+
   // get info about animal to populate cells
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
   const lastName = getLastName(appointment.contact_id);
-
-  // this is to check for the highest empty cell. it only checks if the time, name, and reason are empty
-  let newRow = 7;
-  let rowContents1 = waitlistSheet.getRange('B7:C7');
-  let rowContents2 = waitlistSheet.getRange('I7:J7')
-  while (!rowContents1.isBlank() && !rowContents2.isBlank()) {
-    newRow++;
-    rowContents1 = waitlistSheet.getRange(`B${newRow}:C${newRow}`);
-    rowContents2 = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
-  }
 
   // time
   createTimeCell(waitlistSheet, newRow, getTime(appointment.created_at));
@@ -41,7 +46,6 @@ function addToWaitlist(appointment) {
   // in ezyVet?
   createCheckboxCell(waitlistSheet, newRow, true);
 }
-
 
 // here down is for formatting/inserting content into each individual cell on the waitlist
 

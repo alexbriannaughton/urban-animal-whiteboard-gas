@@ -2,7 +2,7 @@ function assignDvm(appointment) {
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const dvmCell = findRoomCell(location, locationSheet, appointment.consult_id, 4);
+  const dvmCell = findRoomCell(location, locationSheet, appointment.consult_id, 4, appointment.contact_id);
 
   if (!dvmCell) return;
 
@@ -10,7 +10,7 @@ function assignDvm(appointment) {
 
   if (alreadyThere(dvmName, dvmCell.getValue())) return;
 
-  const text = `${dvmName}@${getTime(appointment.modified_at)}`;
+  const text = `${dvmName}@ ${getTime(appointment.modified_at)}`;
 
   dvmCell.setValue(text);
 }

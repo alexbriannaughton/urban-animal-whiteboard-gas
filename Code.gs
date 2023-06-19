@@ -1,6 +1,6 @@
 const token = PropertiesService.getScriptProperties().getProperty('ezyVet_token');
 const proxy = 'https://api.ezyvet.com';
-const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com/';
+const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com';
 
 // this runs with a weekly trigger
 function updateToken() {
@@ -30,12 +30,14 @@ function doPost(e) {
   const last = params.items.length - 1;
   const appointment = params.items[last].appointment;
 
+  let inARoom = roomStatus(appointment.status_id);
+
   if (isTodayPST(appointment.start_at) && appointment.active) {
     //  if it's an appointment_created webhook event
     if (params.meta.event === "appointment_created") {
 
       // if it already has a status of being in a room
-      if (appointment.status_id === 18 || (appointment.status_id >= 25 && appointment.status_id <= 33)) {
+      if (inARoom) {
         moveToRoom(appointment);
       }
 
@@ -54,7 +56,7 @@ function doPost(e) {
     // or, if it's an appointment_updated webhook event (that's happening today)
     else if (params.meta.event === "appointment_updated") {
       // if the appointment has a status of being in a room
-      if (appointment.status_id === 18 || (appointment.status_id >= 25 && appointment.status_id <= 33)) {
+      if (inARoom) {
         moveToRoom(appointment);
       }
 
@@ -67,13 +69,27 @@ function doPost(e) {
       else if (appointment.status_id === 34) {
         addInPatient(appointment);
       }
+
+      // 19 is ok to check out
+      else if (appointment.status_id === 19) {
+        okToCheckOut(appointment);
+      }
+
+      // 17 is 'on wait list'
+      else if (appointment.status_id === 17) {
+        addToWaitlist(appointment);
+      }
     }
-    
-    const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384];
-    // if it has a specific doctor resource, assign that doctor on the room
-    if (dvmResourceIDs.includes(appointment.resources[0].id)) {
-      assignDvm(appointment);
+
+    // if it is in a room or if it has a ready status, check if there's a doctor resource and assign that doctor to the room
+    if (inARoom || appointment.status_id === 22) {
+      const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384];
+      // if it has a specific doctor resource, assign that doctor on the room
+      if (dvmResourceIDs.includes(appointment.resources[0].id)) {
+        assignDvm(appointment);
+      }
     }
+
   }
 
   // Create response object
@@ -89,4 +105,11 @@ function doPost(e) {
 
   // Send response
   return response;
+}
+
+// check if status ID has a room status
+function roomStatus(statusID) {
+  return statusID === 18 ||
+    (statusID >= 25 && statusID <= 33) ||
+    statusID === 36;
 }
