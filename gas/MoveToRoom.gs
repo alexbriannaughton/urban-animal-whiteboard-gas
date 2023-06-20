@@ -67,12 +67,10 @@ function moveToRoom(appointment) {
         alreadyMultiplePets,
         sheet.getRange(`${column}${row}:${column}${row + 7}`)
       );
-      deleteFromWaitlist(location, appointment.consult_id);
+      return deleteFromWaitlist(location, appointment.consult_id);
     }
 
-    // otherwise dont do anything because
-    // 1, the room is taken so we cannot room into this room
-    // or 2, we are handling a two pet room
+    // otherwise dont do anything because the room is taken
     return stopMovingToRoom(appointment);
   }
 

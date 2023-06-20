@@ -5,6 +5,7 @@ function addInPatient(appointment) {
 
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
   const lastName = getLastName(appointment.contact_id);
+  const dvm = getDvm(appointment.resources[0].id, locationSheet) || undefined;
 
   if (location === 'CH') {
     const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
@@ -22,6 +23,7 @@ function addInPatient(appointment) {
       row,
       locationSheet,
       appointment.description,
+      dvm,
       ['U', 'V']
     );
   }
@@ -40,14 +42,15 @@ function addInPatient(appointment) {
       nameCell,
       row,
       locationSheet,
-      appointment.description
+      appointment.description,
+      dvm
     );
   }
 }
 
 // this will run with a daily trigger to put scheduled procedures in the in patient box.
 function getTodaysAppointments() {
-  const today = getTodayRange()
+  const today = getTodayRange();
   const url = `${proxy}/v1/appointment?time_range_start=${today[0]}&time_range_end=${today[1]}&limit=200`;
   const options = {
     method: "GET",
@@ -121,6 +124,8 @@ function addScheduledProcedures(
 
     const nameCell = sheet.getRange(`${nameCols[0]}${row}:${nameCols[1]}${row}`);
 
+    const dvm = getDvm(procedure.resource_list[0], sheet);
+
     populateInpatientRow(
       animalName,
       animalSpecies,
@@ -130,6 +135,7 @@ function addScheduledProcedures(
       row,
       sheet,
       procedure.description,
+      dvm,
       reasonCols
     );
 
@@ -147,6 +153,7 @@ function populateInpatientRow(
   row,
   locationSheet,
   description,
+  dvm,
   reasonCols = ['E', 'F']
 ) {
   const text = `${animalName} ${lastName} (${animalSpecies})`;
@@ -156,6 +163,9 @@ function populateInpatientRow(
 
   const reasonCell = locationSheet.getRange(`${reasonCols[0]}${row}:${reasonCols[1]}${row}`);
   reasonCell.setValue(description);
+
+  const dvmColumn = String.fromCharCode((reasonCols[0].charCodeAt(0) - 1));
+  if (dvm) locationSheet.getRange(`${dvmColumn}${row}`).setValue(dvm);
 }
 
 function clearInPatientBox(sheet, location) {
@@ -168,7 +178,7 @@ function clearInPatientBox(sheet, location) {
     inpatientBox = sheet.getRange('R3:W23');
   }
   else if (location === 'WC') color = '#ead1dc';
-  
+
   inpatientBox.clearContent();
   inpatientBox.setBackground(color);
 }

@@ -135,18 +135,6 @@ function findRoomCell(location, sheet, consultID, distanceBelowMain, contactID) 
 
   let resCoords = checkLinksForID(possMainCoords, sheet, consultID, distanceBelowMain);
 
-  // for (let i = 0; i < possMainCoords.length; i++) {
-  //   const curCoords = possMainCoords[i];
-  //   const cell = sheet.getRange(curCoords);
-  //   const link = cell.getRichTextValue().getLinkUrl();
-
-  //   if (link && link.includes(consultID)) {
-  //     const row = parseInt(curCoords.slice(1)) + distanceBelowMain;
-  //     resCoords = `${curCoords[0]}${row}`;
-  //     break;
-  //   }
-  // }
-
   if (!resCoords) {
     resCoords = checkLinksForID(possMainCoords, sheet, contactID, distanceBelowMain);
   }

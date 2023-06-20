@@ -86,7 +86,7 @@ function doPost(e) {
       const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384];
       // if it has a specific doctor resource, assign that doctor on the room
       if (dvmResourceIDs.includes(appointment.resources[0].id)) {
-        assignDvm(appointment);
+        assignDvm(appointment, inARoom);
       }
     }
 
@@ -112,4 +112,20 @@ function roomStatus(statusID) {
   return statusID === 18 ||
     (statusID >= 25 && statusID <= 33) ||
     statusID === 36;
+}
+
+function testAuth() {
+  const url = `${proxy}/v1/animal/67143`;
+  const options = {
+    muteHttpExceptions: true,
+    method: "GET",
+    headers: {
+      authorization: token
+    }
+  };
+  const response = UrlFetchApp.fetch(url, options);
+  if (response.getResponseCode() === 401) {
+    updateToken();
+    console.log('updated token at testAuth()')
+  }
 }

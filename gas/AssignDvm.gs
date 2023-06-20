@@ -1,8 +1,16 @@
-function assignDvm(appointment) {
+function assignDvm(appointment, inARoom) {
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const dvmCell = findRoomCell(location, locationSheet, appointment.consult_id, 4, appointment.contact_id);
+  let dvmCell;
+
+  // if it has status_id of a room, find the room based on that
+  if (inARoom) {
+    const { row, column } = findCellsOnSpreadsheet(appointment.status_id, location);
+    dvmCell = locationSheet.getRange(`${column}${row + 5}`);
+  }
+  // if it has a ready status, look through all of the rooms for the matching id
+  else dvmCell = findRoomCell(location, locationSheet, appointment.consult_id, 4, appointment.contact_id);
 
   if (!dvmCell) return;
 
@@ -21,6 +29,9 @@ function alreadyThere(dvmName, cellContents) {
 }
 
 function getDvm(resourceID, sheet) {
+  if (resourceID == 65 || resourceID == 27) {
+    return "PP"
+  }
   const dvmObj = {
     '24': 'U25',
     '25': 'U26',
@@ -35,6 +46,7 @@ function getDvm(resourceID, sheet) {
   };
 
   const dvmCoords = dvmObj[resourceID];
-  const dvmName = sheet.getRange(dvmCoords).getValue();
-  return dvmName;
+  if (dvmCoords) {
+    return sheet.getRange(dvmCoords).getValue();
+  }
 }
