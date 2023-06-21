@@ -190,15 +190,16 @@ function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reas
 function fetch1(consultID) {
   const url = `${proxy}/v1/consult/${consultID}`;
 
-  const options = {
-    method: "GET",
-    headers: {
-      authorization: token
-    }
-  };
-  const response = UrlFetchApp.fetch(url, options);
-  const json = response.getContentText();
-  const consult = JSON.parse(json).items[0].consult;
+  // const options = {
+  //   method: "GET",
+  //   headers: {
+  //     authorization: token
+  //   }
+  // };
+  // const response = UrlFetchApp.fetch(url, options);
+  // const json = response.getContentText();
+  // const consult = JSON.parse(json).items[0].consult;
+  const consult = fetchAndParse(url).items[0].consult;
 
   return fetch2(consult.animal_id)
 }
@@ -206,15 +207,16 @@ function fetch1(consultID) {
 function fetch2(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`
 
-  const options = {
-    method: "GET",
-    headers: {
-      authorization: token
-    }
-  };
-  const response = UrlFetchApp.fetch(url, options);
-  const json = response.getContentText();
-  const animal = JSON.parse(json).items[0].animal;
+  // const options = {
+  //   method: "GET",
+  //   headers: {
+  //     authorization: token
+  //   }
+  // };
+  // const response = UrlFetchApp.fetch(url, options);
+  // const json = response.getContentText();
+  // const animal = JSON.parse(json).items[0].animal;
+  const animal = fetchAndParse(url).items[0].animal;
 
   return animal.contact_id;
 }

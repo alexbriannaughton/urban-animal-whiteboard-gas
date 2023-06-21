@@ -52,15 +52,16 @@ function addInPatient(appointment) {
 function getTodaysAppointments() {
   const today = getTodayRange();
   const url = `${proxy}/v1/appointment?time_range_start=${today[0]}&time_range_end=${today[1]}&limit=200`;
-  const options = {
-    method: "GET",
-    headers: {
-      authorization: token
-    }
-  };
-  const response = UrlFetchApp.fetch(url, options);
-  const json = response.getContentText();
-  const appts = JSON.parse(json);
+  // const options = {
+  //   method: "GET",
+  //   headers: {
+  //     authorization: token
+  //   }
+  // };
+  // const response = UrlFetchApp.fetch(url, options);
+  // const json = response.getContentText();
+  // const appts = JSON.parse(json);
+  const appts = fetchAndParse(url);
   checkIfProcedure(appts.items);
 }
 

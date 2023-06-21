@@ -30,7 +30,14 @@ function doPost(e) {
   const last = params.items.length - 1;
   const appointment = params.items[last].appointment;
 
-  let inARoom = roomStatus(appointment.status_id);
+  if (!appointment) {
+    console.log('!appointment:')
+    console.log('params: ', params);
+    console.log('last', last);
+    console.log('e.postData', JSON.parse(e.postData))
+  }
+
+  const inARoom = roomStatus(appointment.status_id);
 
   if (isTodayPST(appointment.start_at) && appointment.active) {
     //  if it's an appointment_created webhook event
@@ -114,8 +121,7 @@ function roomStatus(statusID) {
     statusID === 36;
 }
 
-function testAuth() {
-  const url = `${proxy}/v1/animal/67143`;
+function fetchAndParse(url) {
   const options = {
     muteHttpExceptions: true,
     method: "GET",
@@ -123,9 +129,20 @@ function testAuth() {
       authorization: token
     }
   };
-  const response = UrlFetchApp.fetch(url, options);
+
+  let response = UrlFetchApp.fetch(url, options);
+
   if (response.getResponseCode() === 401) {
     updateToken();
-    console.log('updated token at testAuth()')
+    options.headers.authorization = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
+    response = UrlFetchApp.fetch(url, options);
   }
+
+  const json = response.getContentText();
+  return JSON.parse(json);
+}
+
+function testAuth() {
+  const url = `${proxy}/v1/animal/67143`;
+  fetchAndParse(url);
 }
