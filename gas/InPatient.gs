@@ -5,7 +5,7 @@ function addInPatient(appointment) {
 
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
   const lastName = getLastName(appointment.contact_id);
-  const dvm = getDvm(appointment.resources[0].id, locationSheet) || undefined;
+  // const dvm = getDvm(appointment.resources[0].id, locationSheet) || undefined;
 
   if (location === 'CH') {
     const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
@@ -13,6 +13,9 @@ function addInPatient(appointment) {
     // if name cell doesnt exist that means there's no room in the in patient box.
     // in that case dont do anything
     if (!nameCell) return;
+
+    // color the row gray
+    locationSheet.getRange(`R${row}:W${row}`).setBackground('#f3f3f3');
 
     populateInpatientRow(
       animalName,
@@ -23,7 +26,7 @@ function addInPatient(appointment) {
       row,
       locationSheet,
       appointment.description,
-      dvm,
+      // dvm,
       ['U', 'V']
     );
   }
@@ -34,6 +37,12 @@ function addInPatient(appointment) {
 
     if (!nameCell) return;
 
+    // color the row cyan if dt and magenta if wc
+    const fullRow = locationSheet.getRange(`B${row}:H${row}`);
+    if (location === 'DT') {
+      fullRow.setBackground('#d0e0e3')
+    } else fullRow.setBackground('#ead1dc')
+
     populateInpatientRow(
       animalName,
       animalSpecies,
@@ -43,7 +52,7 @@ function addInPatient(appointment) {
       row,
       locationSheet,
       appointment.description,
-      dvm
+      // dvm
     );
   }
 }
@@ -125,7 +134,7 @@ function addScheduledProcedures(
 
     const nameCell = sheet.getRange(`${nameCols[0]}${row}:${nameCols[1]}${row}`);
 
-    const dvm = getDvm(procedure.resource_list[0], sheet);
+    // const dvm = getDvm(procedure.resource_list[0], sheet);
 
     populateInpatientRow(
       animalName,
@@ -136,7 +145,7 @@ function addScheduledProcedures(
       row,
       sheet,
       procedure.description,
-      dvm,
+      // dvm,
       reasonCols
     );
 
@@ -154,7 +163,7 @@ function populateInpatientRow(
   row,
   locationSheet,
   description,
-  dvm,
+  // dvm,
   reasonCols = ['E', 'F']
 ) {
   const text = `${animalName} ${lastName} (${animalSpecies})`;
@@ -165,8 +174,8 @@ function populateInpatientRow(
   const reasonCell = locationSheet.getRange(`${reasonCols[0]}${row}:${reasonCols[1]}${row}`);
   reasonCell.setValue(description);
 
-  const dvmColumn = String.fromCharCode((reasonCols[0].charCodeAt(0) - 1));
-  if (dvm) locationSheet.getRange(`${dvmColumn}${row}`).setValue(dvm);
+  // const dvmColumn = String.fromCharCode((reasonCols[0].charCodeAt(0) - 1));
+  // if (dvm) locationSheet.getRange(`${dvmColumn}${row}`).setValue(dvm);
 }
 
 function clearInPatientBox(sheet, location) {

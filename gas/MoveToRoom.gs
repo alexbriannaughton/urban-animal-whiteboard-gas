@@ -11,7 +11,8 @@
 // appointment.status_id 36 = room11 = CH: H13, H14, H15
 
 function moveToRoom(appointment) {
-  const location = whichLocation(appointment.resources[0].id);
+  const resourceID = appointment.resources[0].id
+  const location = whichLocation(resourceID);
 
   // if we're moving into a room that doesn't exist, don't
   if (appointment.status_id >= 31 && location === 'DT' || appointment.status_id >= 29 && location === 'WC') {
@@ -25,11 +26,10 @@ function moveToRoom(appointment) {
 
   const curLink = curPtCell.getRichTextValue().getLinkUrl() || undefined;
 
-  // if it's already in the room, don't worry about it
+  // if this appointment is already in the room, don't worry about it
   if (curLink && curLink.includes(appointment.consult_id)) return;
 
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-
   const animalText = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
 
   // if the current patient name cell already has something in
@@ -71,10 +71,10 @@ function moveToRoom(appointment) {
     }
 
     // otherwise dont do anything because the room is taken
-    return stopMovingToRoom(appointment);
+    return stopMovingToRoom(appointment, [animalName, animalSpecies]);
   }
 
-  colorRoom(sheet, row, column, appointment.type_id);
+  colorRoom(sheet, row, column, appointment.type_id, resourceID);
 
   // time cell
   sheet.getRange(`${column}${row}`)
@@ -103,7 +103,7 @@ function findCellsOnSpreadsheet(status_id, location) {
   if (status_id >= 29 && location === 'CH') {
     cellCoords.row = 13;
 
-    // room 11 status id = 36, and it doesn't work with the above column code
+    // room 11 status id = 36, and it doesn't work the same as below
     if (status_id === 36) {
       cellCoords.column = 'H'
     }
@@ -123,23 +123,28 @@ function findCellsOnSpreadsheet(status_id, location) {
     else cellCoords.column = String.fromCharCode(status_id + 43);
     // 43 = status_id - correct column letter's CharCode
   }
-
   return cellCoords;
 }
 
-function colorRoom(sheet, row, column, typeID) {
-  const bgColor = getRoomColor(typeID);
+function colorRoom(sheet, row, column, typeID, resourceID) {
+  const bgColor = getRoomColor(typeID, resourceID);
   sheet.getRange(`${column}${row}:${column}${row + 7}`)
     .setBackground(bgColor);
 }
 
-function getRoomColor(typeID) {
+function getRoomColor(typeID, resourceID) {
   // if it's a tech make the background green
   if (typeID === 19) return '#90EE90';
 
   // if it's IM make the background purple
   const imTypeIDs = [26, 34, 27, 35];
-  if (imTypeIDs.includes(typeID)) return '#d9d2e9';
+  if (
+    imTypeIDs.includes(typeID) ||
+    resourceID == 65 ||
+    resourceID == 27
+  ) {
+    return '#d9d2e9';
+  }
 
   // if it's a pet with a procedure make the background orange
   const procedureTypes = [31, 32, 28, 82, 30, 33, 83, 38, 36, 76, 7, 29, 81];
@@ -156,10 +161,10 @@ function techText(typeID) {
   return typeID === 19 ? "TECH - " : "";
 }
 
-function stopMovingToRoom(appointment) {
+function stopMovingToRoom(appointment, [animalName, animalSpecies]) {
   // add it to the waitlist if it was just created
   if (appointment.created_at === appointment.modified_at) {
-    addToWaitlist(appointment);
+    addToWaitlist(appointment, [animalName, animalSpecies]);
   }
 }
 
@@ -171,7 +176,7 @@ function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reas
     fullRoomCells.setBackground('#f3f3f3');
   }
 
-  const newPtCellText = `${curAnimalText} / ${newAnimalText}`;
+  const newPtCellText = `${curAnimalText} & ${newAnimalText}`;
   const webAddress = `${sitePrefix}/?recordclass=Contact&recordid=${contactID}`;
   const link = makeLink(newPtCellText, webAddress);
   ptCell.setRichTextValue(link);
@@ -228,7 +233,7 @@ function deleteFromWaitlist(location, consultID) {
 
   while (!nameCell.isBlank()) {
     const link = nameCell.getRichTextValue().getLinkUrl();
-    if (link.includes(consultID)) {
+    if (link && link.includes(consultID)) {
       waitlist.deleteRow(row);
     }
     row++;

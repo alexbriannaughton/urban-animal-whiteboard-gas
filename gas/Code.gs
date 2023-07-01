@@ -2,7 +2,6 @@ const token = PropertiesService.getScriptProperties().getProperty('ezyVet_token'
 const proxy = 'https://api.ezyvet.com';
 const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com';
 
-// this runs with a weekly trigger
 function updateToken() {
   const url = `${proxy}/v2/oauth/access_token`;
   const props = PropertiesService.getScriptProperties();
@@ -37,7 +36,7 @@ function doPost(e) {
     console.log('e.postData', JSON.parse(e.postData))
   }
 
-  const inARoom = roomStatus(appointment.status_id);
+  const inARoom = ifRoomStatus(appointment.status_id);
 
   if (isTodayPST(appointment.start_at) && appointment.active) {
     //  if it's an appointment_created webhook event
@@ -88,14 +87,15 @@ function doPost(e) {
       }
     }
 
+    // we are not using the below assign dvm stuff. it is commented out everywhere else in the code too.
     // if it is in a room or if it has a ready status, check if there's a doctor resource and assign that doctor to the room
-    if (inARoom || appointment.status_id === 22) {
-      const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384];
-      // if it has a specific doctor resource, assign that doctor on the room
-      if (dvmResourceIDs.includes(appointment.resources[0].id)) {
-        assignDvm(appointment, inARoom);
-      }
-    }
+    // if (inARoom || appointment.status_id === 22) {
+    //   const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384, 65, 27];
+    //   // if it has a specific doctor resource, assign that doctor on the room
+    //   if (dvmResourceIDs.includes(appointment.resources[0].id)) {
+    //     assignDvm(appointment, inARoom);
+    //   }
+    // }
 
   }
 
@@ -115,7 +115,7 @@ function doPost(e) {
 }
 
 // check if status ID has a room status
-function roomStatus(statusID) {
+function ifRoomStatus(statusID) {
   return statusID === 18 ||
     (statusID >= 25 && statusID <= 33) ||
     statusID === 36;
@@ -145,4 +145,5 @@ function fetchAndParse(url) {
 function testAuth() {
   const url = `${proxy}/v1/animal/67143`;
   fetchAndParse(url);
+  console.log('ran testAuth()')
 }

@@ -28,22 +28,21 @@ function whichLocation(resourceID) {
   // CH Procedure 1, 2 = 29, 30
   // IM columns = 65, 27
   const chResourceIDs = [1081, 28, 24, 25, 26, 1063, 29, 30, 65, 27];
+  if (chResourceIDs.includes(resourceID)) return "CH";
 
   // 1082 = DT walk in calendar resource
   // 56 = DT Tech appt calendar resource
   // 35, 55, 1015 = DT DVM 1, 2 and 3
   // DT Procedure 1, 2 = 57, 58
   const dtResourceIDs = [1082, 56, 35, 55, 1015, 57, 58];
-
+  if (dtResourceIDs.includes(resourceID)) return "DT";
+  
   // 1083 = WC walk cal resource
   // 60 = WC tech appt cal resource
   // 39, 59, 1384 = WC DVM 1, 2 and 3
   // WC Procedure 1, 2 = 61, 62
   const wcResourceIDs = [1083, 60, 39, 59, 1384, 61, 62];
-
-  if (chResourceIDs.includes(resourceID)) return "CH";
-  else if (dtResourceIDs.includes(resourceID)) return "DT";
-  else if (wcResourceIDs.includes(resourceID)) return "WC";
+  if (wcResourceIDs.includes(resourceID)) return "WC";
 }
 
 // store info from /animal endpoint
@@ -125,7 +124,7 @@ function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName)
 
 // searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link
 // returns the coords for cell that we want to manipulate
-function findRoomCell(location, sheet, consultID, distanceBelowMain, contactID) {
+function searchForRoomCell(location, sheet, consultID, distanceBelowMain, contactID) {
   const possMainCoords = ['C4', 'D4', 'E4', 'F4', 'G4'];
 
   if (location === 'DT') {

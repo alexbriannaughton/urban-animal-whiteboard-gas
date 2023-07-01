@@ -1,4 +1,4 @@
-function addToWaitlist(appointment) {
+function addToWaitlist(appointment, animalInfoArray = undefined) {
   // grab correct location's waitlist sheet
   const sheetName = `${whichLocation(appointment.resources[0].id)} Wait List`;
   const waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
@@ -12,14 +12,14 @@ function addToWaitlist(appointment) {
   while (!rowContents1.isBlank() || !rowContents2.isBlank()) {
     const link = rowContents1.getRichTextValue().getLinkUrl();
     // if we find that one of the links has the consult id, that means it's already on the waitlist
-    if (link.includes(consultID)) return; 
+    if (link && link.includes(consultID)) return; 
     newRow++;
     rowContents1 = waitlistSheet.getRange(`C${newRow}:D${newRow}`);
     rowContents2 = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
   }
 
   // get info about animal to populate cells
-  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+  const [animalName, animalSpecies] = animalInfoArray ? animalInfoArray : getAnimalInfo(appointment.animal_id);
   const lastName = getLastName(appointment.contact_id);
 
   // time
