@@ -1,4 +1,4 @@
-// check if utc timestamp is today in PST
+/// check if utc timestamp is today in PST
 function isTodayPST(timestamp) {
   const date = new Date(timestamp * 1000); // convert timestamp to a date object
   const pstDate = Utilities.formatDate(date, 'PST', 'yyyy-MM-dd'); // convert to PST date string
