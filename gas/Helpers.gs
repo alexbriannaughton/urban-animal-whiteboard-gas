@@ -1,4 +1,4 @@
-/// check if utc timestamp is today in PST
+// check if utc timestamp is today in PST
 function isTodayPST(timestamp) {
   const date = new Date(timestamp * 1000); // convert timestamp to a date object
   const pstDate = Utilities.formatDate(date, 'PST', 'yyyy-MM-dd'); // convert to PST date string
@@ -48,15 +48,6 @@ function whichLocation(resourceID) {
 // store info from /animal endpoint
 function getAnimalInfo(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`;
-  // const options = {
-  //   method: "GET",
-  //   headers: {
-  //     authorization: token
-  //   }
-  // };
-  // const response = UrlFetchApp.fetch(url, options);
-  // const json = response.getContentText();
-  // const animal = JSON.parse(json).items[0].animal;
   const animal = fetchAndParse(url).items[0].animal;
 
   const species = animal.species_id === '1' ? "K9" : "FEL";
@@ -66,15 +57,6 @@ function getAnimalInfo(animalID) {
 
 function getLastName(contactID) {
   const url = `${proxy}/v1/contact/${contactID}`;
-  // const options = {
-  //   method: "GET",
-  //   headers: {
-  //     authorization: token
-  //   }
-  // };
-  // const response = UrlFetchApp.fetch(url, options);
-  // const json = response.getContentText();
-  // const lastName = JSON.parse(json).items[0].contact.last_name;
   const lastName = fetchAndParse(url).items[0].contact.last_name;
 
   return lastName;
@@ -94,7 +76,7 @@ function createCheckbox() {
 
 // format a plain cell
 function formatCell(cell) {
-  cell
+  return cell
     .setBackground('#f3f3f3')
     .setBorder(true, true, true, true, true, true);
 }
@@ -140,7 +122,6 @@ function searchForRoomCell(location, sheet, consultID, distanceBelowMain, contac
     resCoords = checkLinksForID(possMainCoords, sheet, contactID, distanceBelowMain);
   }
 
-  // if (!resCoords) return;
   return resCoords ? sheet.getRange(resCoords) : undefined;
 }
 

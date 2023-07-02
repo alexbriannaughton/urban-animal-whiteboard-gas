@@ -36,10 +36,10 @@ function addTechAppt(appointment) {
     if (location === "WC" && mainRow > 15) return;
 
     // fetch the animal's info
-    const animalInfo = getAnimalInfo(appointment.animal_id);
+    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
     // add name and reason with a link to clinical record to mainCell
-    const text = `${animalInfo[0]} (${animalInfo[1]}), ${appointment.description}`;
+    const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
     const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
     const link = makeLink(text, webAddress);
     mainCell.setRichTextValue(link);
@@ -54,6 +54,8 @@ function addTechAppt(appointment) {
     const checkboxCell = locationSheet.getRange(`${column}${mainRow}`);
     formatCell(checkboxCell);
     techCheckbox(checkboxCell);
+
+    return;
   }
 }
 
@@ -81,9 +83,11 @@ function addCHTechAppt(appointment, locationSheet) {
   // check the ezyvet checkbox
   const checkboxCell = locationSheet.getRange(`P${row}`)
   techCheckbox(checkboxCell);
+
+  return;
 }
 
 function techCheckbox(cell) {
   const checkbox = createCheckbox();
-  cell.setDataValidation(checkbox).setValue(true);
+  return cell.setDataValidation(checkbox).setValue(true);
 }

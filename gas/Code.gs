@@ -29,16 +29,9 @@ function doPost(e) {
   const last = params.items.length - 1;
   const appointment = params.items[last].appointment;
 
-  if (!appointment) {
-    console.log('!appointment:')
-    console.log('params: ', params);
-    console.log('last', last);
-    console.log('e.postData', JSON.parse(e.postData))
-  }
-
-  const inARoom = ifRoomStatus(appointment.status_id);
-
   if (isTodayPST(appointment.start_at) && appointment.active) {
+    const inARoom = ifRoomStatus(appointment.status_id);
+    
     //  if it's an appointment_created webhook event
     if (params.meta.event === "appointment_created") {
 

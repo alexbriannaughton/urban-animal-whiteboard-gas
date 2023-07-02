@@ -7,4 +7,6 @@ function okToCheckOut(appointment) {
   if (!okCheckbox) return;
 
   okCheckbox.setValue(true);
+
+  return;
 }

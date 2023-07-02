@@ -9,4 +9,6 @@ function handleReadyStatus(appointment) {
     const text = `ready@ ${time}`;
     readyCell.setValue(text);
   }
+
+  return;
 }

@@ -45,12 +45,14 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
 
   // in ezyVet?
   createCheckboxCell(waitlistSheet, newRow, true);
+
+  return;
 }
 
 // here down is for formatting/inserting content into each individual cell on the waitlist
 
 function createTimeCell(sheet, newRow, time) {
-  formatCell(
+  return formatCell(
     sheet
       .getRange('B' + newRow)
       .setValue(time)
@@ -66,6 +68,8 @@ function createPatientCell(sheet, newRow, patientName = "", lastName = "", consu
     const link = makeLink(text, `${sitePrefix}/?recordclass=Consult&recordid=${consultID}`);
     cell.setRichTextValue(link);
   }
+
+  return;
 }
 
 function createSpeciesCell(sheet, newRow, species = "") {
@@ -77,6 +81,7 @@ function createSpeciesCell(sheet, newRow, species = "") {
       // .setDataValidation(catDogDropdown)
       .setValue(species)
   );
+  return;
 }
 
 function createReasonCell(sheet, newRow, reason = "") {
@@ -86,6 +91,7 @@ function createReasonCell(sheet, newRow, reason = "") {
       .merge()
       .setValue(reason)
   );
+  return;
 }
 
 function createCheckboxCell(sheet, newRow, ifChecked) {
@@ -95,6 +101,8 @@ function createCheckboxCell(sheet, newRow, ifChecked) {
   const rule = createCheckbox();
   cell.setDataValidation(rule);
   cell.setValue(ifChecked);
+
+  return;
 }
 
 // this is currently unused. using dropdown created directly from Sheet UI instead.

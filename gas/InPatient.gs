@@ -55,23 +55,16 @@ function addInPatient(appointment) {
       // dvm
     );
   }
+
+  return;
 }
 
 // this will run with a daily trigger to put scheduled procedures in the in patient box.
 function getTodaysAppointments() {
   const today = getTodayRange();
   const url = `${proxy}/v1/appointment?time_range_start=${today[0]}&time_range_end=${today[1]}&limit=200`;
-  // const options = {
-  //   method: "GET",
-  //   headers: {
-  //     authorization: token
-  //   }
-  // };
-  // const response = UrlFetchApp.fetch(url, options);
-  // const json = response.getContentText();
-  // const appts = JSON.parse(json);
   const appts = fetchAndParse(url);
-  checkIfProcedure(appts.items);
+  return checkIfProcedure(appts.items);
 }
 
 function checkIfProcedure(arr) {
@@ -105,6 +98,8 @@ function checkIfProcedure(arr) {
   addScheduledProcedures(chProcedures, 'CH', ['R', 'S'], 3, ['U', 'V']);
   addScheduledProcedures(dtProcedures, 'DT');
   addScheduledProcedures(wcProcedures, 'WC');
+
+  return;
 }
 
 // procdure cells start at B14:C14, E14:F14 for both WC and DT
@@ -117,7 +112,7 @@ function addScheduledProcedures(
 ) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  clearInPatientBox(sheet, location)
+  clearInPatientBox(sheet, location);
 
   for (let i = 0; i < procedureArr.length; i++) {
     const procedure = procedureArr[i];
@@ -125,7 +120,7 @@ function addScheduledProcedures(
     // skip the empty object
     if (!procedure.animal_id) continue;
 
-    const lastCol = String.fromCharCode(nameCols[0].charCodeAt(0) + 6);
+    const lastCol = location === 'CH' ? 'W' : 'H';
     sheet.getRange(`${nameCols[0]}${row}:${lastCol}${row}`)
       .setBackground(procedure.color);
 
@@ -152,6 +147,7 @@ function addScheduledProcedures(
     row++;
   }
 
+  return;
 }
 
 function populateInpatientRow(
@@ -176,6 +172,8 @@ function populateInpatientRow(
 
   // const dvmColumn = String.fromCharCode((reasonCols[0].charCodeAt(0) - 1));
   // if (dvm) locationSheet.getRange(`${dvmColumn}${row}`).setValue(dvm);
+
+  return;
 }
 
 function clearInPatientBox(sheet, location) {
@@ -191,6 +189,8 @@ function clearInPatientBox(sheet, location) {
 
   inpatientBox.clearContent();
   inpatientBox.setBackground(color);
+
+  return;
 }
 
 // sort all procedures according to type_id unless its dental. dentals go last
@@ -207,8 +207,16 @@ function sortAndColorProcedures(locsProcsArray) {
 
   function getSortValue(procedure) {
     // this function also adds a color to the procedure/appointment object
+    if (!procedure.resource_list) return;
+    const resource = procedure.resource_list[0];
     const typeID = procedure.appointment_type_id;
-    if (typeID === ausTypeID) {
+
+    // anything that is in the IM column, despite the appointment_type, will be grouped as IM
+    if (imTypeIDs.includes(typeID) || resource == 27 || resource == 65) {
+      procedure.color = '#d9d2e9';
+      return 5;
+    }
+    else if (typeID === ausTypeID) {
       procedure.color = '#f4cccc';
       return 0;
     }
@@ -228,10 +236,6 @@ function sortAndColorProcedures(locsProcsArray) {
       procedure.color = '	#cfe2f3';
       return 4;
     }
-    else if (imTypeIDs.includes(typeID)) {
-      procedure.color = '#d9d2e9';
-      return 5;
-    }
     else if (typeID === healthCertID) {
       procedure.color = '#fff2cc';
       return 6;
@@ -246,6 +250,8 @@ function sortAndColorProcedures(locsProcsArray) {
     const locationProcedures = locsProcsArray[i];
     locationProcedures.sort((a, b) => getSortValue(a) - getSortValue(b));
   }
+
+  return;
 }
 
 function getTodayRange() {

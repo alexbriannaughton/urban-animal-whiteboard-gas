@@ -32,10 +32,10 @@ function moveToRoom(appointment) {
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
   const animalText = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
 
-  // if the current patient name cell already has something in
+  // if the current patient name cell already has something in it
   // check if the animal has the same contact ID as the one we're requesting to put in it
   if (!curPtCell.isBlank()) {
-    // if the current text in the patient cell is text without a link, return so we don't overwrite it
+    // if the current text in the patient cell is text without a link, return so we don't overwrite it / aka don't do anything
     if (!curLink) return;
 
     // another check to see if it's already in the room, since multiple pet room will not carry the consult id
@@ -52,7 +52,7 @@ function moveToRoom(appointment) {
       curContactID = curID;
       alreadyMultiplePets = true;
     }
-    // otherwise there's only one pet and we should have the consult id
+    // otherwise there's only one pet, meaning we have the consult id
     // which we'll use to find the contact id
     else curContactID = fetch1(curID);
 
@@ -67,7 +67,8 @@ function moveToRoom(appointment) {
         alreadyMultiplePets,
         sheet.getRange(`${column}${row}:${column}${row + 7}`)
       );
-      return deleteFromWaitlist(location, appointment.consult_id);
+      deleteFromWaitlist(location, appointment.consult_id);
+      return;
     }
 
     // otherwise dont do anything because the room is taken
@@ -90,16 +91,22 @@ function moveToRoom(appointment) {
   sheet.getRange(`${column}${row + 2}`)
     .setValue(`${appointment.description}`);
 
+  // mark room as dirty
+  sheet.getRange(`${column}${row + 8}`)
+    .setValue('d')
+
   // delete from the waitlist
   // const lastName = getLastName(appointment.contact_id);
   deleteFromWaitlist(location, appointment.consult_id);
+
+  return;
 }
 
 function findCellsOnSpreadsheet(status_id, location) {
   // we have already weeded out rooms that do not exist
   const cellCoords = {};
 
-  // if it's CH rooms 6 - 11. handle for the lower columns
+  // if it's CH rooms 6 - 11, handle for the lower rows
   if (status_id >= 29 && location === 'CH') {
     cellCoords.row = 13;
 
@@ -130,6 +137,7 @@ function colorRoom(sheet, row, column, typeID, resourceID) {
   const bgColor = getRoomColor(typeID, resourceID);
   sheet.getRange(`${column}${row}:${column}${row + 7}`)
     .setBackground(bgColor);
+  return;
 }
 
 function getRoomColor(typeID, resourceID) {
@@ -166,17 +174,20 @@ function stopMovingToRoom(appointment, [animalName, animalSpecies]) {
   if (appointment.created_at === appointment.modified_at) {
     addToWaitlist(appointment, [animalName, animalSpecies]);
   }
+  return;
 }
 
 function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reasonCell, alreadyMultiplePets, fullRoomCells) {
   const curAnimalText = ptCell.getValue();
   const curAnimalReasonText = reasonCell.getValue();
 
-  if (!curAnimalText.includes('TECH:')) {
+  const newPtCellText = `${curAnimalText} & ${newAnimalText}`;
+
+  // if the incoming one isnt a tech or if the ones already there don't include a tech, make the background gray
+  if (!curAnimalText.includes('TECH - ') || !newAnimalText.includes('TECH - ')) {
     fullRoomCells.setBackground('#f3f3f3');
   }
 
-  const newPtCellText = `${curAnimalText} & ${newAnimalText}`;
   const webAddress = `${sitePrefix}/?recordclass=Contact&recordid=${contactID}`;
   const link = makeLink(newPtCellText, webAddress);
   ptCell.setRichTextValue(link);
@@ -184,43 +195,25 @@ function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reas
   let reasonText;
 
   if (alreadyMultiplePets) {
-    reasonText = `${curAnimalReasonText},\n${newAnimalText.split("(")[0]}: ${newReason}`;
+    reasonText = `${curAnimalReasonText},\n${newAnimalText.split(" (")[0]}: ${newReason}`;
   }
-  else reasonText = `${curAnimalText.split("(")[0]}: ${curAnimalReasonText},\n${newAnimalText.split("(")[0]}: ${newReason}`;
+  else reasonText = `${curAnimalText.split(" (")[0]}: ${curAnimalReasonText},\n${newAnimalText.split(" (")[0]}: ${newReason}`;
 
   reasonCell.setValue(reasonText);
+
+  return;
 }
 
 // fetch1 retreives a animal_id based on a consult_id
 function fetch1(consultID) {
   const url = `${proxy}/v1/consult/${consultID}`;
-
-  // const options = {
-  //   method: "GET",
-  //   headers: {
-  //     authorization: token
-  //   }
-  // };
-  // const response = UrlFetchApp.fetch(url, options);
-  // const json = response.getContentText();
-  // const consult = JSON.parse(json).items[0].consult;
   const consult = fetchAndParse(url).items[0].consult;
 
-  return fetch2(consult.animal_id)
+  return fetch2(consult.animal_id);
 }
 // fetch2 retreives a contact id from an animal id
 function fetch2(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`
-
-  // const options = {
-  //   method: "GET",
-  //   headers: {
-  //     authorization: token
-  //   }
-  // };
-  // const response = UrlFetchApp.fetch(url, options);
-  // const json = response.getContentText();
-  // const animal = JSON.parse(json).items[0].animal;
   const animal = fetchAndParse(url).items[0].animal;
 
   return animal.contact_id;
@@ -239,4 +232,6 @@ function deleteFromWaitlist(location, consultID) {
     row++;
     nameCell = waitlist.getRange(`C${row}:D${row}`);
   }
+
+  return;
 }
