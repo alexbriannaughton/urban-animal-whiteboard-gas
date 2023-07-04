@@ -23,15 +23,33 @@ function updateToken() {
   props.setProperty('ezyVet_token', `Bearer ${newToken}`);
 }
 
-// receive+handle webhook events
+// receive webhook events
 function doPost(e) {
+  // exponential backoff for too many simultaneous invocations
+  for (let n = 0; n < 6; n++) {
+    try {
+      handleWebhook(e);
+      return ContentService.createTextOutput('Webhook processed successfully');
+    }
+    catch (error) {
+      Logger.log("GASRetry " + n + ": " + error);
+      if (n === 5) {
+        throw error;
+      }
+      Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
+    }
+  }
+}
+
+// handle webhook events
+function handleWebhook(e) {
   const params = JSON.parse(e.postData.contents);
   const last = params.items.length - 1;
   const appointment = params.items[last].appointment;
 
   if (isTodayPST(appointment.start_at) && appointment.active) {
     const inARoom = ifRoomStatus(appointment.status_id);
-    
+
     //  if it's an appointment_created webhook event
     if (params.meta.event === "appointment_created") {
 
@@ -92,19 +110,21 @@ function doPost(e) {
 
   }
 
-  // Create response object
-  const jsonResponse = {
-    success: true,
-    message: "Webhook event received and processed successfully."
-  };
+  // // Create response object
+  // const jsonResponse = {
+  //   success: true,
+  //   message: "Webhook event received and processed successfully."
+  // };
 
-  // Set response content type
-  const outputContent = JSON.stringify(jsonResponse);
-  const outputMimeType = ContentService.MimeType.JSON;
-  const response = ContentService.createTextOutput(outputContent).setMimeType(outputMimeType);
+  // // Set response content type
+  // const outputContent = JSON.stringify(jsonResponse);
+  // const outputMimeType = ContentService.MimeType.JSON;
+  // const response = ContentService.createTextOutput(outputContent).setMimeType(outputMimeType);
 
-  // Send response
-  return response;
+  // // Send response
+  // return response;
+
+  return;
 }
 
 // check if status ID has a room status
@@ -138,5 +158,4 @@ function fetchAndParse(url) {
 function testAuth() {
   const url = `${proxy}/v1/animal/67143`;
   fetchAndParse(url);
-  console.log('ran testAuth()')
 }
