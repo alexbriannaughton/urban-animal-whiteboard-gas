@@ -23,29 +23,44 @@ function updateToken() {
   props.setProperty('ezyVet_token', `Bearer ${newToken}`);
 }
 
-// receive webhook events
 function doPost(e) {
-  // exponential backoff for too many simultaneous invocations
-  for (let n = 0; n < 6; n++) {
-    try {
-      handleWebhook(e);
-      return ContentService.createTextOutput('Webhook processed successfully');
-    }
-    catch (error) {
-      Logger.log("GASRetry " + n + ": " + error);
-      if (n === 5) {
-        throw error;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(60000);
+
+  try {
+    for (let n = 0; n < 5; n++) {
+      try {
+        handleWebhook(e);
+        return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.JSON);
       }
-      Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
+      catch (error) {
+        Logger.log("GASRetry " + n + ": " + error);
+        if (n === 4) {
+          throw error;
+        }
+        Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
+      }
     }
+  }
+  finally {
+    lock.releaseLock();
   }
 }
 
 // handle webhook events
 function handleWebhook(e) {
+  // console.log('raw JSON: ', e.postData.contents);
   const params = JSON.parse(e.postData.contents);
   const last = params.items.length - 1;
+
+  if (!params.items[last] || !params.items[last].appointment) {
+    console.log('PARAMS ERROR: ', params);
+    return;
+  }
+
   const appointment = params.items[last].appointment;
+
+  console.log('HANDLE WEBHOOK: ', appointment)
 
   if (isTodayPST(appointment.start_at) && appointment.active) {
     const inARoom = ifRoomStatus(appointment.status_id);
@@ -55,18 +70,18 @@ function handleWebhook(e) {
 
       // if it already has a status of being in a room
       if (inARoom) {
-        moveToRoom(appointment);
+        return moveToRoom(appointment);
       }
 
       // else, if it's a walk-in doctor visit
       // appointment type 37 = walk in, appointment type 77 = new client walk in
       else if (appointment.type_id === 37 || appointment.type_id === 77) {
-        addToWaitlist(appointment);
+        return addToWaitlist(appointment);
       }
 
       // or, if it has a tech appointment type, add to tech appt column
       else if (appointment.type_id === 19) {
-        addTechAppt(appointment);
+        return addTechAppt(appointment);
       }
     }
 
@@ -74,27 +89,27 @@ function handleWebhook(e) {
     else if (params.meta.event === "appointment_updated") {
       // if the appointment has a status of being in a room
       if (inARoom) {
-        moveToRoom(appointment);
+        return moveToRoom(appointment);
       }
 
       // if it has a ready status
       else if (appointment.status_id === 22) {
-        handleReadyStatus(appointment);
+        return handleReadyStatus(appointment);
       }
 
       // 34 is inpatient status
       else if (appointment.status_id === 34) {
-        addInPatient(appointment);
+        return addInPatient(appointment);
       }
 
       // 19 is ok to check out
       else if (appointment.status_id === 19) {
-        okToCheckOut(appointment);
+        return okToCheckOut(appointment);
       }
 
       // 17 is 'on wait list'
       else if (appointment.status_id === 17) {
-        addToWaitlist(appointment);
+        return addToWaitlist(appointment);
       }
     }
 
@@ -109,20 +124,6 @@ function handleWebhook(e) {
     // }
 
   }
-
-  // // Create response object
-  // const jsonResponse = {
-  //   success: true,
-  //   message: "Webhook event received and processed successfully."
-  // };
-
-  // // Set response content type
-  // const outputContent = JSON.stringify(jsonResponse);
-  // const outputMimeType = ContentService.MimeType.JSON;
-  // const response = ContentService.createTextOutput(outputContent).setMimeType(outputMimeType);
-
-  // // Send response
-  // return response;
 
   return;
 }
