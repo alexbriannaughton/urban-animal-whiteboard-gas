@@ -34,11 +34,14 @@ function doPost(e) {
         return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.JSON);
       }
       catch (error) {
-        Logger.log("GASRetry " + n + ": " + error);
-        if (n === 4) {
-          throw error;
+        if (error.toString().includes('simultaneous invocations')) {
+          console.log("GASRetry " + n + ": " + error);
+          if (n === 4) {
+            throw error;
+          }
+          Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
         }
-        Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
+        else throw error;
       }
     }
   }
