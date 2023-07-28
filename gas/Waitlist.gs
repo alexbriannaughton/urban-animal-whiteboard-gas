@@ -1,21 +1,39 @@
 function addToWaitlist(appointment, animalInfoArray = undefined) {
+  // console.log('APPT ID: ', appointment.id, 'beginning of addToWaitlist()')
+
   // grab correct location's waitlist sheet
   const sheetName = `${whichLocation(appointment.resources[0].id)} Wait List`;
-  const waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  let waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
 
   // this is to check for the highest empty row.
-  // it only checks if the name or the reason is empty. if they are populated, it will go to the next cell
   let newRow = 7;
-  let rowContents1 = waitlistSheet.getRange('C7:D7');
-  let rowContents2 = waitlistSheet.getRange('I7:J7');
+  let rowContents = waitlistSheet.getRange('B7:J7');
   const consultID = appointment.consult_id;
-  while (!rowContents1.isBlank() || !rowContents2.isBlank()) {
-    const link = rowContents1.getRichTextValue().getLinkUrl();
-    // if we find that one of the links has the consult id, that means it's already on the waitlist
-    if (link && link.includes(consultID)) return; 
+  while (!rowContents.isBlank()) {
+    // console.log('current row: ', newRow)
+    // const ptCell = waitlistSheet.getRange(`C${newRow}:D${newRow}`)
+    // console.log('patient cell contents: ', ptCell.getValue(), 'is blank:', ptCell.isBlank());
+    // const reasonCell = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
+    // console.log('reason cell contents: ', reasonCell.getValue(), 'is blank: ', reasonCell.isBlank());
+    // const timeCell = waitlistSheet.getRange(`B${newRow}`)
+    // console.log('time cell: ', timeCell.getValue(), 'is blank: ', timeCell.isBlank());
+    // const speciesCell = waitlistSheet.getRange(`E${newRow}`)
+    // console.log('species dropdown: ', speciesCell.getValue(), 'is blank: ', speciesCell.isBlank())
+    // const notesCell = waitlistSheet.getRange(`F${newRow}`)
+    // console.log('notes cell: ', notesCell.getValue(), 'is blank: ', notesCell.isBlank());
+    // const triageCell = waitlistSheet.getRange(`G${newRow}`)
+    // console.log('triage cell: ', triageCell.getValue(), 'is blank: ', triageCell.isBlank());
+    // const phoneCell = waitlistSheet.getRange(`H${newRow}`)
+    // console.log('phone cell: ', phoneCell.getValue(), 'is blank: ', phoneCell.isBlank());
+    
+
+    const link = waitlistSheet.getRange(`C${newRow}:D${newRow}`).getRichTextValue().getLinkUrl();
+    // if we find that one of the patient cell links has the consult id, that means it's already on the waitlist
+    if (link && link.includes(consultID)) return;
     newRow++;
-    rowContents1 = waitlistSheet.getRange(`C${newRow}:D${newRow}`);
-    rowContents2 = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
+    rowContents = waitlistSheet.getRange(`B${newRow}:J${newRow}`);
+
+    // console.log('APPT ID: ', appointment.id, 'bottom of while loop for finding empty row on waitlist. new row to check is ', newRow);
   }
 
   // get info about animal to populate cells
@@ -46,6 +64,7 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
   // in ezyVet?
   createCheckboxCell(waitlistSheet, newRow, true);
 
+  // console.log('APPT ID: ', appointment.id, 'bottom of addToWaitlist()')
   return;
 }
 
@@ -62,7 +81,7 @@ function createTimeCell(sheet, newRow, time) {
 function createPatientCell(sheet, newRow, patientName = "", lastName = "", consultID = undefined) {
   const cell = sheet.getRange('C' + newRow + ':D' + newRow).merge();
   formatCell(cell);
-  
+
   if (consultID !== undefined) {
     const text = `${patientName} ${lastName}`
     const link = makeLink(text, `${sitePrefix}/?recordclass=Consult&recordid=${consultID}`);

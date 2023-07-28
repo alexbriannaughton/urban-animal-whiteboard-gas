@@ -11,6 +11,8 @@
 // appointment.status_id 36 = room11 = CH: H13, H14, H15
 
 function moveToRoom(appointment) {
+  // console.log('APPT ID: ', appointment.id, ' at Beginnging of MoveToRoom()')
+
   const resourceID = appointment.resources[0].id
   const location = whichLocation(resourceID);
 
@@ -29,25 +31,30 @@ function moveToRoom(appointment) {
   // if this appointment is already in the room, don't worry about it
   if (curLink && curLink.includes(appointment.consult_id)) return;
 
+  // console.log('APPT ID: ', appointment.id, 'MoveToRoom() before fetching animal info')
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+  // console.log('APPT ID: ', appointment.id, 'After fetching animal info')
+
   const animalText = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
 
   // if the current patient name cell already has something in it
-  // check if the animal has the same contact ID as the one we're requesting to put in it
   if (!curPtCell.isBlank()) {
-    // if the current text in the patient cell is text without a link, return so we don't overwrite it / aka don't do anything
+    // if the current text in the patient cell is text without a link, don't do anything so we don't overwrite whatever is there
     if (!curLink) return;
 
     // another check to see if it's already in the room, since multiple pet room will not carry the consult id
     if (curPtCell.getValue().includes(animalText)) return;
 
-    // grab the id at the end of the link
-    const curID = curLink.split('=')[2];
+    // then, check if the animal has the same contact ID as the one we're requesting to put in it
 
+    // console.log('APPT ID: ', appointment.id, 'Before locating the contact ID')
+
+    // first, grab the id at the end of the link
+    const curID = curLink.split('=')[2];
     let curContactID;
     let alreadyMultiplePets = false;
-
-    // if this link is a contact id, that means there are already multiple pets in this room, and we already have the contact id
+    // if this link is a contact id, that means there are already multiple pets in this room
+    // therefore, we already have the contact id
     if (curLink.includes('Contact')) {
       curContactID = curID;
       alreadyMultiplePets = true;
@@ -55,6 +62,8 @@ function moveToRoom(appointment) {
     // otherwise there's only one pet, meaning we have the consult id
     // which we'll use to find the contact id
     else curContactID = fetch1(curID);
+
+    // console.log('APPT ID: ', appointment.id, 'After locating the contact ID')
 
     // if that contact id matches the contact id of the appointment we're trying to move to this room, handle a multiple pet room
     if (parseInt(curContactID) === appointment.contact_id) {
@@ -65,9 +74,10 @@ function moveToRoom(appointment) {
         curPtCell,
         sheet.getRange(`${column}${row + 2}`,),
         alreadyMultiplePets,
-        sheet.getRange(`${column}${row}:${column}${row + 7}`)
+        sheet.getRange(`${column}${row}:${column}${row + 7}`),
+        appointment
       );
-      deleteFromWaitlist(location, appointment.consult_id);
+      deleteFromWaitlist(location, appointment.consult_id, appointment);
       return;
     }
 
@@ -93,11 +103,13 @@ function moveToRoom(appointment) {
 
   // mark room as dirty
   sheet.getRange(`${column}${row + 8}`)
-    .setValue('d')
+    .setValue('d');
+
+  // console.log('APPT ID: ', appointment.id, 'After adding to the room')
 
   // delete from the waitlist
   // const lastName = getLastName(appointment.contact_id);
-  deleteFromWaitlist(location, appointment.consult_id);
+  deleteFromWaitlist(location, appointment.consult_id, appointment);
 
   return;
 }
@@ -172,12 +184,17 @@ function techText(typeID) {
 function stopMovingToRoom(appointment, [animalName, animalSpecies]) {
   // add it to the waitlist if it was just created
   if (appointment.created_at === appointment.modified_at) {
-    addToWaitlist(appointment, [animalName, animalSpecies]);
+    if (animalName) addToWaitlist(appointment, [animalName, animalSpecies]);
+    else addToWaitlist(appointment);
+
   }
+  console.log('APPT ID: ', appointment.id, 'at End of stopMovingToRoom()')
   return;
 }
 
-function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reasonCell, alreadyMultiplePets, fullRoomCells) {
+function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reasonCell, alreadyMultiplePets, fullRoomCells,
+  appointment
+) {
   const curAnimalText = ptCell.getValue();
   const curAnimalReasonText = reasonCell.getValue();
 
@@ -201,6 +218,8 @@ function handleMultiplePetRoom(contactID, newReason, newAnimalText, ptCell, reas
 
   reasonCell.setValue(reasonText);
 
+  // console.log('APPT ID: ', appointment.id, 'End of handleMultiplePetRoom()')
+
   return;
 }
 
@@ -219,19 +238,25 @@ function fetch2(animalID) {
   return animal.contact_id;
 }
 
-function deleteFromWaitlist(location, consultID) {
+function deleteFromWaitlist(location, consultID, appointment) {
+  // console.log('APPT ID: ', appointment.id, 'top of deleteFromWaitlist()');
+
   const waitlist = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(`${location} Wait List`);
   let row = 7;
-  let nameCell = waitlist.getRange('C7:D7');
+  let rowCells = waitlist.getRange('B7:J7');
 
-  while (!nameCell.isBlank()) {
-    const link = nameCell.getRichTextValue().getLinkUrl();
+  while (!rowCells.isBlank()) {
+    const link = waitlist.getRange(`C${row}:D${row}`).getRichTextValue().getLinkUrl();
     if (link && link.includes(consultID)) {
-      waitlist.deleteRow(row);
+      return waitlist.deleteRow(row);
     }
     row++;
-    nameCell = waitlist.getRange(`C${row}:D${row}`);
+    rowCells = waitlist.getRange(`B${row}:J${row}`);
+
+    // console.log('APPT ID: ', appointment.id, 'finding waitlist row to delete: ', row);
   }
+
+  // console.log('APPT ID: ', appointment.id, 'End of deleteFromWaitlist');
 
   return;
 }
