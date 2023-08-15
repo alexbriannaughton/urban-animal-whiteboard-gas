@@ -181,14 +181,14 @@ function techText(typeID) {
   return typeID === 19 ? "TECH - " : "";
 }
 
-function stopMovingToRoom(appointment, [animalName, animalSpecies]) {
+function stopMovingToRoom(appointment, [animalName, animalSpecies] = []) {
   // add it to the waitlist if it was just created
   if (appointment.created_at === appointment.modified_at) {
     if (animalName) addToWaitlist(appointment, [animalName, animalSpecies]);
     else addToWaitlist(appointment);
 
   }
-  console.log('APPT ID: ', appointment.id, 'at End of stopMovingToRoom()')
+  // console.log('APPT ID: ', appointment.id, 'at End of stopMovingToRoom()')
   return;
 }
 
@@ -242,21 +242,16 @@ function deleteFromWaitlist(location, consultID, appointment) {
   // console.log('APPT ID: ', appointment.id, 'top of deleteFromWaitlist()');
 
   const waitlist = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(`${location} Wait List`);
-  let row = 7;
-  let rowCells = waitlist.getRange('B7:J7');
+  
+  const ptNamesRichTexts = waitlist.getRange(`C7:D50`).getRichTextValues();
 
-  while (!rowCells.isBlank()) {
-    const link = waitlist.getRange(`C${row}:D${row}`).getRichTextValue().getLinkUrl();
+  for (let i = 0; i < ptNamesRichTexts.length; i++) {
+    const link = ptNamesRichTexts[i][0].getLinkUrl();
+
     if (link && link.includes(consultID)) {
-      return waitlist.deleteRow(row);
+      return waitlist.deleteRow(i + 7);
     }
-    row++;
-    rowCells = waitlist.getRange(`B${row}:J${row}`);
-
-    // console.log('APPT ID: ', appointment.id, 'finding waitlist row to delete: ', row);
   }
-
-  // console.log('APPT ID: ', appointment.id, 'End of deleteFromWaitlist');
 
   return;
 }

@@ -5,36 +5,9 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
   const sheetName = `${whichLocation(appointment.resources[0].id)} Wait List`;
   let waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
 
-  // this is to check for the highest empty row.
-  let newRow = 7;
-  let rowContents = waitlistSheet.getRange('B7:J7');
-  const consultID = appointment.consult_id;
-  while (!rowContents.isBlank()) {
-    // console.log('current row: ', newRow)
-    // const ptCell = waitlistSheet.getRange(`C${newRow}:D${newRow}`)
-    // console.log('patient cell contents: ', ptCell.getValue(), 'is blank:', ptCell.isBlank());
-    // const reasonCell = waitlistSheet.getRange(`I${newRow}:J${newRow}`)
-    // console.log('reason cell contents: ', reasonCell.getValue(), 'is blank: ', reasonCell.isBlank());
-    // const timeCell = waitlistSheet.getRange(`B${newRow}`)
-    // console.log('time cell: ', timeCell.getValue(), 'is blank: ', timeCell.isBlank());
-    // const speciesCell = waitlistSheet.getRange(`E${newRow}`)
-    // console.log('species dropdown: ', speciesCell.getValue(), 'is blank: ', speciesCell.isBlank())
-    // const notesCell = waitlistSheet.getRange(`F${newRow}`)
-    // console.log('notes cell: ', notesCell.getValue(), 'is blank: ', notesCell.isBlank());
-    // const triageCell = waitlistSheet.getRange(`G${newRow}`)
-    // console.log('triage cell: ', triageCell.getValue(), 'is blank: ', triageCell.isBlank());
-    // const phoneCell = waitlistSheet.getRange(`H${newRow}`)
-    // console.log('phone cell: ', phoneCell.getValue(), 'is blank: ', phoneCell.isBlank());
-    
-
-    const link = waitlistSheet.getRange(`C${newRow}:D${newRow}`).getRichTextValue().getLinkUrl();
-    // if we find that one of the patient cell links has the consult id, that means it's already on the waitlist
-    if (link && link.includes(consultID)) return;
-    newRow++;
-    rowContents = waitlistSheet.getRange(`B${newRow}:J${newRow}`);
-
-    // console.log('APPT ID: ', appointment.id, 'bottom of while loop for finding empty row on waitlist. new row to check is ', newRow);
-  }
+  const newRow = findHighestEmptyRow(waitlistSheet, appointment.consult_id);
+  // the findHighestEmptyRow function only checks up to row 75. if all rows up to 75 are populated with something, dont do anything (return)
+  if (!newRow) return;
 
   // get info about animal to populate cells
   const [animalName, animalSpecies] = animalInfoArray ? animalInfoArray : getAnimalInfo(appointment.animal_id);
@@ -66,6 +39,25 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
 
   // console.log('APPT ID: ', appointment.id, 'bottom of addToWaitlist()')
   return;
+}
+
+function findHighestEmptyRow(waitlistSheet, consultID) {
+  const rowContents = waitlistSheet.getRange(`B7:J50`).getValues();
+  const patientNameRichText = waitlistSheet.getRange(`C7:D50`).getRichTextValues();
+
+  for (let i = 0; i < rowContents.length; i++) {
+    const link = patientNameRichText[i][0].getLinkUrl();
+    // if we find that one of the patient cell links has the consult id, that means it's already on the waitlist, so return
+    if (link && link.includes(consultID)) return;
+
+    // if every item within the rowContents array is an empty string
+    if (rowContents[i].every(cell => cell === '')) {
+      // return that row bc it's the highest empty row
+      return i + 7
+    }
+  }
+
+  // console.log(`couldnt find an empty row for consult id ${consultID}`)
 }
 
 // here down is for formatting/inserting content into each individual cell on the waitlist
