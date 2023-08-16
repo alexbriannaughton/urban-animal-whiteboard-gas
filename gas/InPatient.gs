@@ -3,16 +3,15 @@ function addInPatient(appointment) {
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-  const lastName = getLastName(appointment.contact_id);
-  // const dvm = getDvm(appointment.resources[0].id, locationSheet) || undefined;
-
   if (location === 'CH') {
-    const [nameCell, row] = findHighestMergedCell(locationSheet, ['R', 'S'], 3, 23, animalName, lastName);
+    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'R', 'S', 3, 23, appointment.consult_id);
 
     // if name cell doesnt exist that means there's no room in the in patient box.
     // in that case dont do anything
     if (!nameCell) return;
+
+    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+    const lastName = getLastName(appointment.contact_id);
 
     // color the row gray
     locationSheet.getRange(`R${row}:W${row}`).setBackground('#f3f3f3');
@@ -33,15 +32,19 @@ function addInPatient(appointment) {
 
   else {
     // else, its either at DT or WC and their inpatient box is in the same cell coordinates
-    const [nameCell, row] = findHighestMergedCell(locationSheet, ['B', 'C'], 14, 40, animalName, lastName);
+    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'B', 'C', 14, 42, appointment.consult_id);
 
     if (!nameCell) return;
+
+    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+    const lastName = getLastName(appointment.contact_id);
 
     // color the row cyan if dt and magenta if wc
     const fullRow = locationSheet.getRange(`B${row}:H${row}`);
     if (location === 'DT') {
       fullRow.setBackground('#d0e0e3')
-    } else fullRow.setBackground('#ead1dc')
+    }
+    else fullRow.setBackground('#ead1dc')
 
     populateInpatientRow(
       animalName,
@@ -177,7 +180,6 @@ function populateInpatientRow(
 }
 
 function clearInPatientBox(sheet, location) {
-  // clear the in patient box
   let color = '#d0e0e3';
   let inpatientBox = sheet.getRange('B14:H40');
 
@@ -187,8 +189,11 @@ function clearInPatientBox(sheet, location) {
   }
   else if (location === 'WC') color = '#ead1dc';
 
-  inpatientBox.clearContent();
-  inpatientBox.setBackground(color);
+  inpatientBox
+    .clearContent()
+    .setBackground(color)
+    .setFontColor('black')
+    .setFontLine(null);
 
   return;
 }
@@ -225,6 +230,7 @@ function sortAndColorProcedures(locsProcsArray) {
       return 1;
     }
     else if (sxTypeIDs.includes(typeID)) {
+      // light green 3
       procedure.color = '#d9ead3';
       return 2;
     }
@@ -233,7 +239,8 @@ function sortAndColorProcedures(locsProcsArray) {
       return 3;
     }
     else if (typeID === dentalTypeID) {
-      procedure.color = '	#cfe2f3';
+      // light blue 3
+      procedure.color = '#cfe2f3';
       return 4;
     }
     else if (typeID === healthCertID) {

@@ -3,91 +3,45 @@ function addTechAppt(appointment) {
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
+  let firstColumn, lastColumn, firstRow, lastRow;
   if (location === 'CH') {
-    // ch tech appointments column has three cells that are merged so it requires unique handling
-    return addCHTechAppt(appointment, locationSheet);
+    firstColumn = 'L';
+    lastColumn = 'N';
+    firstRow = 5;
+    lastRow = 21;
+  }
+  else if (location === "DT") {
+    firstColumn = 'M';
+    lastColumn = 'M';
+    firstRow = 5;
+    lastRow = 11
+  }
+  else if (location === "WC") {
+    firstColumn = 'L';
+    lastColumn = 'L'
+    firstRow = 4;
+    lastRow = 15;
   }
 
-  else {
-    // this is a normal tech appointment handler, that doesn't require the merged cells like CH
-    let mainColumn;
-    let mainRow;
+  const [mainCell, mainRow] = findHighestEmptyCell(locationSheet, firstColumn, lastColumn, firstRow, lastRow);
 
-    if (location === "DT") {
-      mainColumn = 'M';
-      mainRow = '5';
-    }
-
-    else if (location === "WC") {
-      mainColumn = 'L';
-      mainRow = '4';
-    }
-
-    let mainCell = locationSheet.getRange(`${mainColumn}${mainRow}`);
-
-    // find the highest tech cell that is blank
-    while (!mainCell.isBlank()) {
-      mainRow++;
-      mainCell = locationSheet.getRange(`${mainColumn}${mainRow}`);
-    }
-
-    // dont do anything if there's no room in the tech box
-    if (location === "DT" && mainRow > 11) return;
-    if (location === "WC" && mainRow > 15) return;
-
-    // fetch the animal's info
-    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-
-    // add name and reason with a link to clinical record to mainCell
-    const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
-    const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
-    const link = makeLink(text, webAddress);
-    mainCell.setRichTextValue(link);
-
-    // find column to left of mainCell and add time
-    let column = String.fromCharCode(mainColumn.charCodeAt(0) - 1);
-    locationSheet.getRange(`${column}${mainRow}`)
-      .setValue(getTime(appointment.created_at));
-
-    // check the ezyVet checkbox
-    column = String.fromCharCode(mainColumn.charCodeAt(0) + 2);
-    const checkboxCell = locationSheet.getRange(`${column}${mainRow}`);
-    formatCell(checkboxCell);
-    techCheckbox(checkboxCell);
-
-    return;
-  }
-}
-
-// bc of the merged cells in the tech column on the CH page, adding tech requires its own handling
-function addCHTechAppt(appointment, locationSheet) {
-  // grab highest available cell in tech column
-  const [mainCell, row] = findHighestMergedCell(locationSheet, ['L', 'N'], 5, 21);
-
-  // don't do anything if there's no room in tech column
   if (!mainCell) return;
 
-  // get the animal's info
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
-  // add name and reason with a link to clinical record
+  // add name and reason with a link to clinical record to main tech appointment cell
   const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
   const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
   const link = makeLink(text, webAddress);
   mainCell.setRichTextValue(link);
 
-  // add time to column k
-  locationSheet.getRange(`K${row}`)
-    .setValue(getTime(appointment.created_at));
+  // find column to left of mainCell and add time
+  mainCell.offset(0, -1, 1, 1).setValue(getTime(appointment.created_at));
 
-  // check the ezyvet checkbox
-  const checkboxCell = locationSheet.getRange(`P${row}`)
-  techCheckbox(checkboxCell);
+  // check the ezyVet checkbox
+  const checkboxOffsetColumn = lastColumn.charCodeAt(0) - firstColumn.charCodeAt(0) + 2;
+  const checkboxCell = mainCell.offset(0, checkboxOffsetColumn, 1, 1);
+  checkboxCell.setDataValidation(createCheckbox()).setValue(true);
 
   return;
-}
-
-function techCheckbox(cell) {
-  const checkbox = createCheckbox();
-  return cell.setDataValidation(checkbox).setValue(true);
 }

@@ -6,36 +6,37 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
   let waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
 
   const newRow = findHighestEmptyRow(waitlistSheet, appointment.consult_id);
-  // the findHighestEmptyRow function only checks up to row 75. if all rows up to 75 are populated with something, dont do anything (return)
+  // the findHighestEmptyRow function only checks up to row 50. if all rows up to 50 are populated with something, dont do anything (return)
   if (!newRow) return;
+  const rowRange = waitlistSheet.getRange('B' + newRow + ':K' + newRow);
+  rowRange.setBackground('#f3f3f3');
+  rowRange.setBorder(true, true, true, true, true, true);
 
   // get info about animal to populate cells
-  const [animalName, animalSpecies] = animalInfoArray ? animalInfoArray : getAnimalInfo(appointment.animal_id);
+  const [animalName, animalSpecies] = animalInfoArray || getAnimalInfo(appointment.animal_id);
   const lastName = getLastName(appointment.contact_id);
 
-  // time
-  createTimeCell(waitlistSheet, newRow, getTime(appointment.created_at));
+  // populate time cell
+  const timeCell = rowRange.offset(0, 0, 1, 1);
+  timeCell.setValue(getTime(appointment.created_at));
 
-  // name
-  createPatientCell(waitlistSheet, newRow, animalName, lastName, appointment.consult_id);
+  // populate name cell
+  const patientCell = rowRange.offset(0, 1, 1, 2).merge();
+  const patientText = `${animalName} ${lastName}`;
+  const link = makeLink(patientText, `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`);
+  patientCell.setRichTextValue(link);
 
-  // cat or dog
-  createSpeciesCell(waitlistSheet, newRow, animalSpecies);
-
-  // notes/triaged/phone sections
-  formatCell(
-    waitlistSheet.getRange('F' + newRow + ':H' + newRow)
-  );
-
-  // no need to create triage dropdown.
-  // sheet will try to format like cells above it, and the dropdown from the sheet UI looks better.
-  // createTriageDropdown(waitlistSheet, newRow);
+  // populate cat or dog dropdown
+  const speciesCell = rowRange.offset(0, 3, 1, 1);
+  speciesCell.setValue(animalSpecies);
 
   // reason for visit
-  createReasonCell(waitlistSheet, newRow, appointment.description);
+  const reasonCell = rowRange.offset(0, 7, 1, 2).merge();
+  reasonCell.setValue(appointment.description);
 
   // in ezyVet?
-  createCheckboxCell(waitlistSheet, newRow, true);
+  const ezyVetCell = rowRange.offset(0, 9, 1, 1);
+  ezyVetCell.setDataValidation(createCheckbox()).setValue(true);
 
   // console.log('APPT ID: ', appointment.id, 'bottom of addToWaitlist()')
   return;
@@ -57,100 +58,4 @@ function findHighestEmptyRow(waitlistSheet, consultID) {
     }
   }
 
-  // console.log(`couldnt find an empty row for consult id ${consultID}`)
 }
-
-// here down is for formatting/inserting content into each individual cell on the waitlist
-
-function createTimeCell(sheet, newRow, time) {
-  return formatCell(
-    sheet
-      .getRange('B' + newRow)
-      .setValue(time)
-  )
-}
-
-function createPatientCell(sheet, newRow, patientName = "", lastName = "", consultID = undefined) {
-  const cell = sheet.getRange('C' + newRow + ':D' + newRow).merge();
-  formatCell(cell);
-
-  if (consultID !== undefined) {
-    const text = `${patientName} ${lastName}`
-    const link = makeLink(text, `${sitePrefix}/?recordclass=Consult&recordid=${consultID}`);
-    cell.setRichTextValue(link);
-  }
-
-  return;
-}
-
-function createSpeciesCell(sheet, newRow, species = "") {
-  // again, we are not currently creating dropdowns through Apps Script. The Sheets UI one is better.
-  // const catDogDropdown = createDropdown(['', 'K9', 'FEL']);
-  formatCell(
-    sheet
-      .getRange('E' + newRow)
-      // .setDataValidation(catDogDropdown)
-      .setValue(species)
-  );
-  return;
-}
-
-function createReasonCell(sheet, newRow, reason = "") {
-  formatCell(
-    sheet
-      .getRange('I' + newRow + ':J' + newRow)
-      .merge()
-      .setValue(reason)
-  );
-  return;
-}
-
-function createCheckboxCell(sheet, newRow, ifChecked) {
-  const cell = sheet.getRange('K' + newRow);
-  formatCell(cell);
-
-  const rule = createCheckbox();
-  cell.setDataValidation(rule);
-  cell.setValue(ifChecked);
-
-  return;
-}
-
-// this is currently unused. using dropdown created directly from Sheet UI instead.
-// function createTriageDropdown(sheet, newRow) {
-//   const triageDropdown = createDropdown(['Triaging', 'Bumped', 'OKTW', 'Declined'])
-//   sheet
-//     .getRange('G' + newRow)
-//     .setDataValidation(triageDropdown);
-// }
-
-// for manually adding patients to waitlist
-// this isn't being used. i think it would require giving everyone direct access to the apps script
-// function addRow() {
-//   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-//   const newRow = sheet.getLastRow() + 1;
-
-//   // current time
-//   createTimeCell(sheet, newRow, getJSTime())
-
-//   // patient
-//   createPatientCell(sheet, newRow);
-
-//   // cat or dog
-//   createSpeciesCell(sheet, newRow);
-
-//   // format notes/triaged/phone sections.
-//   formatCell(
-//     sheet.getRange('F' + newRow + ':H' + newRow)
-//   );
-
-//   // no need to create triage dropdown.
-//   // sheet will try to format like cells above it, and the dropdown from the sheet UI looks better.
-//   // createTriageDropdown(sheet, newRow);
-
-//   // reason for visit
-//   createReasonCell(sheet, newRow);
-
-//   // in ezyVet ?
-//   createCheckboxCell(sheet, newRow, false)
-// }

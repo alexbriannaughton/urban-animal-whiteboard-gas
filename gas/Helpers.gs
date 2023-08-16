@@ -36,7 +36,7 @@ function whichLocation(resourceID) {
   // DT Procedure 1, 2 = 57, 58
   const dtResourceIDs = [1082, 56, 35, 55, 1015, 57, 58];
   if (dtResourceIDs.includes(resourceID)) return "DT";
-  
+
   // 1083 = WC walk cal resource
   // 60 = WC tech appt cal resource
   // 39, 59, 1384 = WC DVM 1, 2 and 3
@@ -49,8 +49,11 @@ function whichLocation(resourceID) {
 function getAnimalInfo(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`;
   const animal = fetchAndParse(url).items[0].animal;
+  const speciesID = animal.species_id;
 
-  const species = animal.species_id === '1' ? "K9" : "FEL";
+  let species = '';
+  if (speciesID === '1') species = 'K9';
+  if (speciesID === '2') species = 'FEL';
 
   return [animal.name, species];
 }
@@ -74,34 +77,34 @@ function createCheckbox() {
   return SpreadsheetApp.newDataValidation().requireCheckbox().setAllowInvalid(false).build();
 }
 
-// format a plain cell
-function formatCell(cell) {
-  return cell
-    .setBackground('#f3f3f3')
-    .setBorder(true, true, true, true, true, true);
-}
+// findHighestEmptyCell() returns the highest empty cell and its row as an array
+// if firstCol != lastCol that means we're handling a merged cell
+// if there's no empty cell in whatever range youre searching through,
+// or if we find a link with the consult id already in this range
+  // returns an empty array
+function findHighestEmptyCell(sheet, firstCol, lastCol, firstRow, lastRow, consultID) {
+  const range = sheet.getRange(`${firstCol}${firstRow}:${lastCol}${lastRow}`);
+  const rows = range.getValues();
+  const nameRichTexts = range.getRichTextValues();
 
-// find the highest empty merged cell, return it and its row
-function findHighestMergedCell(sheet, cols, row, rowLimit, animalName, lastName) {
-  let cell = sheet.getRange(`${cols[0]}${row}:${cols[1]}${row}`);
+  for (let i = 0; i < rows.length; i++) {
+    const curContent = rows[i][0];
 
-  while (!cell.isBlank()) {
-    // if a animalName and lastName is provided, we are checking to see if the pet is already somewhere in the column
-    if (animalName && lastName) {
-      if (cell.getValue().includes(`${animalName} ${lastName}`)) {
-        return [];
-      }
+    if (!curContent) {
+      return [
+        // sheet.getRange(`${firstCol}${firstRow + i}:${lastCol}${firstRow + i}`),
+        range.offset(i, 0, 1, lastCol.charCodeAt(0) - firstCol.charCodeAt(0) + 1),
+        firstRow + i
+      ];
     }
 
-    row++;
-
-    // return empty array to properly handle if the box/column is full
-    if (row > rowLimit) return [];
-
-    cell = sheet.getRange(`${cols[0]}${row}:${cols[1]}${row}`);
+    if (consultID) {
+      const link = nameRichTexts[i][0].getLinkUrl();
+      if (link && link.includes(consultID)) return [];
+    }
   }
 
-  return [cell, row];
+  return [];
 }
 
 // searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link
@@ -137,36 +140,3 @@ function checkLinksForID(possMainCoords, sheet, id, distanceBelowMain) {
     }
   }
 }
-
-
-// below this line are currently unused functions.
-
-// get hour and minute from JS Date object
-// function getJSTime() {
-//   const currentDate = new Date(Date.now());
-
-//   let hours = currentDate.getHours();
-//   let minutes = currentDate.getMinutes();
-
-//   hours = hours % 12 || 12; // Handle 0 and 12 as 12
-//   minutes = minutes < 10 ? `0${minutes}` : minutes;
-
-//   // Display the time
-//   const time12HourFormat = `${hours}:${minutes}`;
-
-//   return time12HourFormat;
-// }
-
-// function createDropdown(choicesArray) {
-//   return SpreadsheetApp
-//     .newDataValidation()
-//     .requireValueInList(choicesArray)
-//     .build();
-// }
-
-// function getRespTime(timestamp) {
-//   const ezyVetTime = new Date(timestamp * 1000).getMinutes()
-//   let timeReceived = new Date().getMinutes()
-//   if (ezyVetTime > timeReceived) ezyVetTime += 60
-//   return timeReceived - ezyVetTime
-// }
