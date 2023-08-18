@@ -1,37 +1,13 @@
-const token = PropertiesService.getScriptProperties().getProperty('ezyVet_token');
-const proxy = 'https://api.ezyvet.com';
-const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com';
-
-function updateToken() {
-  const url = `${proxy}/v2/oauth/access_token`;
-  const props = PropertiesService.getScriptProperties();
-  const payload = {
-    partner_id: props.getProperty('partner_id'),
-    client_id: props.getProperty('client_id'),
-    client_secret: props.getProperty('client_secret'),
-    grant_type: props.getProperty('grant_type'),
-    scope: props.getProperty('scope')
-  };
-  const options = {
-    crossDomain: true,
-    method: "POST",
-    payload: payload
-  };
-  const response = UrlFetchApp.fetch(url, options);
-  const json = response.getContentText();
-  const newToken = JSON.parse(json).access_token;
-  props.setProperty('ezyVet_token', `Bearer ${newToken}`);
-}
-
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(60000);
 
   try {
+    let isARetry = false;
     for (let n = 0; n < 5; n++) {
       try {
-        handleWebhook(e);
-        return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.JSON);
+        handleWebhook(e, isARetry);
+        return ContentService.createTextOutput("staus = 200 !!!!").setMimeType(ContentService.MimeType.JSON);
       }
       catch (error) {
         if (error.toString().includes('simultaneous invocations')) {
@@ -45,9 +21,14 @@ function doPost(e) {
       }
     }
   }
+  catch (error) {
+    console.log('hit the outer catchblockerror');
+    throw error;
+  }
   finally {
     lock.releaseLock();
   }
+  return;
 }
 
 // handle webhook events
@@ -63,7 +44,7 @@ function handleWebhook(e) {
 
   const appointment = params.items[last].appointment;
 
-  console.log('HANDLE WEBHOOK: ', appointment)
+  // console.log('HANDLE WEBHOOK: ', appointment)
 
   if (isTodayPST(appointment.start_at) && appointment.active) {
     const inARoom = ifRoomStatus(appointment.status_id);
@@ -151,7 +132,8 @@ function fetchAndParse(url) {
 
   if (response.getResponseCode() === 401) {
     updateToken();
-    options.headers.authorization = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
+    token = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
+    options.headers.authorization = token;
     response = UrlFetchApp.fetch(url, options);
   }
 
