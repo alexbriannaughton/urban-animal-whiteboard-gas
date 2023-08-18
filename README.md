@@ -1,4 +1,4 @@
-I develop and maintain a Google Apps Script tool that integrates with [Urban Animal](https://urbananimalnw.com/)'s ERM, [ezyVet](https://www.ezyvet.com/). I also work the front desk : ) 
+I develop and maintain a Google Apps Script that integrates with [Urban Animal](https://urbananimalnw.com/)'s EMR, [ezyVet](https://www.ezyvet.com/). I also work the front desk : ) 
 
 The project utilizes Google Sheets, Google Cloud Platform, webhooks from ezyVet's fab API, and Javascript.
 
