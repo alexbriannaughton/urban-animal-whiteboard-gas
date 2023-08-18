@@ -43,11 +43,12 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
 }
 
 function findHighestEmptyRow(waitlistSheet, consultID) {
-  const rowContents = waitlistSheet.getRange(`B7:J50`).getValues();
-  const patientNameRichText = waitlistSheet.getRange(`C7:D50`).getRichTextValues();
+  const allRowsRange = waitlistSheet.getRange(`B7:J75`);
+  const rowContents = allRowsRange.getValues();
+  const patientNameRichText = allRowsRange.getRichTextValues();
 
   for (let i = 0; i < rowContents.length; i++) {
-    const link = patientNameRichText[i][0].getLinkUrl();
+    const link = patientNameRichText[i][1].getLinkUrl();
     // if we find that one of the patient cell links has the consult id, that means it's already on the waitlist, so return
     if (link && link.includes(consultID)) return;
 
@@ -57,5 +58,4 @@ function findHighestEmptyRow(waitlistSheet, consultID) {
       return i + 7
     }
   }
-
 }

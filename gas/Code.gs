@@ -97,7 +97,8 @@ function handleWebhook(e) {
     }
 
     // or, if it's an appointment_updated webhook event (that's happening today)
-    else if (params.meta.event === "appointment_updated") {
+    // else if (params.meta.event === "appointment_updated") {
+    else {
       // if the appointment has a status of being in a room
       if (inARoom) {
         return moveToRoom(appointment);

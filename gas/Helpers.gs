@@ -77,7 +77,7 @@ function createCheckbox() {
   return SpreadsheetApp.newDataValidation().requireCheckbox().setAllowInvalid(false).build();
 }
 
-// findHighestEmptyCell() returns the highest empty cell and its row as an array
+// findHighestEmptyCell() returns an array where array[0] = the highest empty cell and array[1] = its row as an array
 // if firstCol != lastCol that means we're handling a merged cell
 // if there's no empty cell in whatever range youre searching through,
 // or if we find a link with the consult id already in this range
@@ -92,7 +92,6 @@ function findHighestEmptyCell(sheet, firstCol, lastCol, firstRow, lastRow, consu
 
     if (!curContent) {
       return [
-        // sheet.getRange(`${firstCol}${firstRow + i}:${lastCol}${firstRow + i}`),
         range.offset(i, 0, 1, lastCol.charCodeAt(0) - firstCol.charCodeAt(0) + 1),
         firstRow + i
       ];

@@ -29,7 +29,7 @@ function addTechAppt(appointment) {
 
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
-  // add name and reason with a link to clinical record to main tech appointment cell
+  // populate main cell: name, species, reason... and make it a link
   const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
   const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
   const link = makeLink(text, webAddress);
