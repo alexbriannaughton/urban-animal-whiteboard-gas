@@ -1,5 +1,5 @@
-Independently develop and maintain a Google Sheet tool that integrates with a veterinary hospital's medical software, ezyVet. The project utilizes Google Apps Script, Google Web Apps, Google Cloud Platform, webhooks, ezyVet's API, and Javascript.
+I develop and maintain a Google Apps Script tool that integrates with [Urban Animal](https://urbananimalnw.com/)'s ERM, [ezyVet](https://www.ezyvet.com/). I also work the front desk : ) 
 
-The Google Sheet is living, breathing representation of all of the pets that are actively within the care of Urban Animal, one of the largest veterinary practices in Seattle with three locations throughout the city. The Sheet keeps track of the 20-70 pets actively within the hospital's care at all times.
+The project utilizes Google Sheets, Google Cloud Platform, webhooks from ezyVet's fab API, and Javascript.
 
-Currently in production, used by 100+ Urban Animal employees.
+The Google Sheet is living, breathing representation of all of the pets that are actively within the care of Urban Animal, one of the largest veterinary practices in Seattle. The spreadsheet, which is used across 3 locations by more than 100 Urban Animal employees, helps to manage the care of the 20-70 dogs and cats that are generally on site at any given moment.
