@@ -1,3 +1,7 @@
+let token = PropertiesService.getScriptProperties().getProperty('ezyVet_token');
+const proxy = 'https://api.ezyvet.com';
+const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com';
+
 function updateToken() {
   const url = `${proxy}/v2/oauth/access_token`;
   const props = PropertiesService.getScriptProperties();
