@@ -1,3 +1,26 @@
+function updateToken() {
+  const url = `${proxy}/v2/oauth/access_token`;
+  const props = PropertiesService.getScriptProperties();
+  const payload = {
+    partner_id: props.getProperty('partner_id'),
+    client_id: props.getProperty('client_id'),
+    client_secret: props.getProperty('client_secret'),
+    grant_type: props.getProperty('grant_type'),
+    scope: props.getProperty('scope')
+  };
+  const options = {
+    crossDomain: true,
+    method: "POST",
+    payload: payload
+  };
+  const response = UrlFetchApp.fetch(url, options);
+  const json = response.getContentText();
+  const newToken = JSON.parse(json).access_token;
+  props.setProperty('ezyVet_token', `Bearer ${newToken}`);
+  console.log('TOKEN UPDATED: ', newToken);
+  return;
+}
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(60000);
