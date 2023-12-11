@@ -1,17 +1,24 @@
 // for manually adding to in patient column based on changing an appointment to inpatient status in ezyvet
 function addInPatient(appointment) {
+
+
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
   if (location === 'CH') {
+    // arguments for findHighestEmptyCell:
+    // R - S is the merged cell where the name/link is inputted
+    // in patient box is from row 3 to 23
     const [nameCell, row] = findHighestEmptyCell(locationSheet, 'R', 'S', 3, 23, appointment.consult_id);
 
     // if name cell doesnt exist that means there's no room in the in patient box.
     // in that case dont do anything
     if (!nameCell) return;
 
-    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-    const lastName = getLastName(appointment.contact_id);
+    const {
+      animalInfo: [animalName, animalSpecies],
+      contactLastName: lastName
+    } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
 
     // color the row gray
     locationSheet.getRange(`R${row}:W${row}`).setBackground('#f3f3f3');
@@ -32,7 +39,10 @@ function addInPatient(appointment) {
 
   else {
     // else, its either at DT or WC and their inpatient box is in the same cell coordinates
-    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'B', 'C', 14, 42, appointment.consult_id);
+
+    const lowestInpatientRow = location === 'DT' ? 23 : 42;
+
+    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'B', 'C', 14, lowestInpatientRow, appointment.consult_id);
 
     if (!nameCell) return;
 
@@ -59,6 +69,8 @@ function addInPatient(appointment) {
     );
   }
 
+  // console.log(`appointment ${appointment.id} at bottom of addInPatient()`);
+
   return;
 }
 
@@ -81,7 +93,7 @@ function checkIfProcedure(arr) {
   const dtProcedures = [{}];
   const wcProcedureIDs = ['61', '62'];
   const wcProcedures = [{}];
-  // initializing with empty array so that sort/colorize method will be hit even if only one procedure
+  // initializing with empty object so that sort/colorize method will be hit even if only one procedure
 
   arr.forEach((appt) => {
     const resourceID = appt.appointment.details.resource_list[0];
@@ -118,6 +130,9 @@ function addScheduledProcedures(
   clearInPatientBox(sheet, location);
 
   for (let i = 0; i < procedureArr.length; i++) {
+    // stop if were getting into today's exam's on the dt sheet
+    if (location === 'DT' && row > 23) return;
+
     const procedure = procedureArr[i];
 
     // skip the empty object
@@ -180,14 +195,22 @@ function populateInpatientRow(
 }
 
 function clearInPatientBox(sheet, location) {
-  let color = '#d0e0e3';
-  let inpatientBox = sheet.getRange('B14:H40');
+  let color;
+  let inpatientBox;
 
   if (location === 'CH') {
     color = '#f3f3f3';
-    inpatientBox = sheet.getRange('R3:W23');
+    inpatientBox = sheet.getRange('R3:W36');
   }
-  else if (location === 'WC') color = '#ead1dc';
+  else if (location === 'WC') {
+    color = '#ead1dc';
+    inpatientBox = sheet.getRange('B14:H42');
+  }
+  // else if location === 'DT'
+  else {
+    color = '#d0e0e3';
+    inpatientBox = sheet.getRange('B14:H23');
+  }
 
   inpatientBox
     .clearContent()
@@ -204,8 +227,8 @@ function sortAndColorProcedures(locsProcsArray) {
   const sxTypeIDs = ['7', '76'];
   const ausTypeID = '29';
   const echoTypeID = '30';
-  // secondary procedures = acth stim, bile acids, drop off, bgc, hosp patient, lddst, sedated procedure, walk in
-  const secondaryTypeIDs = ['31', '32', '82', '33', '83', '38', '36', '37'];
+  // secondary procedures = acth stim, bile acids, drop off, bgc, hosp patient, lddst, sedated procedure, walk in, tech
+  const secondaryTypeIDs = ['31', '32', '82', '33', '83', '38', '36', '37', '17'];
   const dentalTypeID = '28';
   const imTypeIDs = ['26', '34', '27', '35'];
   const healthCertID = '81';

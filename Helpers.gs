@@ -48,21 +48,67 @@ function whichLocation(resourceID) {
 // store info from /animal endpoint
 function getAnimalInfo(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`;
-  const animal = fetchAndParse(url).items[0].animal;
+  const animal = fetchAndParse(url).items.at(-1).animal;
   const speciesID = animal.species_id;
 
   let species = '';
   if (speciesID === '1') species = 'K9';
-  if (speciesID === '2') species = 'FEL';
+  else if (speciesID === '2') species = 'FEL';
 
   return [animal.name, species];
 }
 
 function getLastName(contactID) {
   const url = `${proxy}/v1/contact/${contactID}`;
-  const lastName = fetchAndParse(url).items[0].contact.last_name;
+  const lastName = fetchAndParse(url).items.at(-1).contact.last_name;
 
   return lastName;
+}
+
+// this is like a promise.all to get animal name and last name at the same time
+function getAnimalInfoAndLastName(animalID, contactID) {
+  const animalRequest = {
+    muteHttpExceptions: true,
+    url: `${proxy}/v1/animal/${animalID}`,
+    method: "GET",
+    headers: {
+      authorization: token
+    }
+  };
+
+  const contactRequest = {
+    muteHttpExceptions: true,
+    url: `${proxy}/v1/contact/${contactID}`,
+    method: "GET",
+    headers: {
+      authorization: token
+    }
+  };
+
+  let [animalResponse, contactResponse] = UrlFetchApp.fetchAll([animalRequest, contactRequest]);
+
+  if (animalResponse.getResponseCode() === 401 || contactResponse.getResponseCode() === 401) {
+    updateToken();
+    token = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
+    animalRequest.headers.authorization = token;
+    contactRequest.headers.authorization = token;
+    [animalResponse, contactResponse] = UrlFetchApp.fetchAll([animalRequest, contactRequest]);
+  }
+
+  const animalJSON = animalResponse.getContentText();
+  const parsedAnimal = JSON.parse(animalJSON);
+  const animal = parsedAnimal.items.at(-1).animal;
+  const speciesID = animal.species_id;
+  let species = '';
+  if (speciesID === '1') species = 'K9';
+  else if (speciesID === '2') species = 'FEL';
+  const animalInfo = [animal.name, species];
+
+  const contactJSON = contactResponse.getContentText();
+  const parsedContact = JSON.parse(contactJSON);
+  const contactLastName = parsedContact.items.at(-1).contact.last_name;
+
+  return { animalInfo, contactLastName }
 }
 
 function makeLink(text, webAddress) {
@@ -77,21 +123,25 @@ function createCheckbox() {
   return SpreadsheetApp.newDataValidation().requireCheckbox().setAllowInvalid(false).build();
 }
 
-// findHighestEmptyCell() returns an array where array[0] = the highest empty cell and array[1] = its row as an array
+// findHighestEmptyCell() returns an array where array[0] = the highest empty cell and array[1] = its row number
+// currently used to:
+// add in patients manually, InPatient.gs
+// add tech appointments, TechAppts.gs
 // if firstCol != lastCol that means we're handling a merged cell
 // if there's no empty cell in whatever range youre searching through,
 // or if we find a link with the consult id already in this range
-  // returns an empty array
+// returns an empty array
 function findHighestEmptyCell(sheet, firstCol, lastCol, firstRow, lastRow, consultID) {
   const range = sheet.getRange(`${firstCol}${firstRow}:${lastCol}${lastRow}`);
   const rows = range.getValues();
   const nameRichTexts = range.getRichTextValues();
+  let emptySpot;
 
   for (let i = 0; i < rows.length; i++) {
     const curContent = rows[i][0];
 
-    if (!curContent) {
-      return [
+    if (!emptySpot && !curContent) {
+      emptySpot = [
         range.offset(i, 0, 1, lastCol.charCodeAt(0) - firstCol.charCodeAt(0) + 1),
         firstRow + i
       ];
@@ -103,7 +153,7 @@ function findHighestEmptyCell(sheet, firstCol, lastCol, firstRow, lastRow, consu
     }
   }
 
-  return [];
+  return emptySpot || [];
 }
 
 // searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link

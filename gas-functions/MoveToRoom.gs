@@ -10,8 +10,8 @@
 // appointment.status_id 33 = room10 = CH: G13, G14, G15
 // appointment.status_id 36 = room11 = CH: H13, H14, H15
 
-function moveToRoom(appointment, isARetry) {
-  // console.log('APPT ID: ', appointment.id, ' at Beginnging of MoveToRoom()')
+function moveToRoom(appointment) {
+  // console.log(`appointment ${appointment.id} at top of moveToRoom()`);
 
   const resourceID = appointment.resources[0].id;
   const location = whichLocation(resourceID);
@@ -30,8 +30,7 @@ function moveToRoom(appointment, isARetry) {
 
   // if this appointment is already in the room, don't worry about it
   if (curLink && curLink.includes(appointment.consult_id)) {
-    if (isARetry) return deleteFromWaitlist(location, appointment.consult_id);
-    return;
+    return deleteFromWaitlist(location, appointment.consult_id);
   }
 
   // console.log('APPT ID: ', appointment.id, 'MoveToRoom() before fetching animal info')
@@ -46,10 +45,10 @@ function moveToRoom(appointment, isARetry) {
   // if the current patient name cell already has something in it
   if (curPtCellContent) {
     // if the current text in the patient cell is text without a link, don't do anything so we don't overwrite whatever is there
-    if (!curLink) return;
+    if (!curLink) return stopMovingToRoom(appointment, [animalName, animalSpecies]);
 
     // another check to see if it's already in the room, since multiple pet room will not carry the consult id
-    if (curPtCellContent.includes(incomingAnimalText)) return;
+    if (curPtCellContent.includes(incomingAnimalText)) return stopMovingToRoom(appointment, [animalName, animalSpecies]);
 
 
     // then, check if the animal currently in the room has the same contact ID as the incoming animal
@@ -119,6 +118,8 @@ function moveToRoom(appointment, isARetry) {
   // delete from the waitlist
   deleteFromWaitlist(location, appointment.consult_id);
 
+  // console.log(`appointment ${appointment.id} at bottom of moveToRoom()`);
+
   return;
 }
 
@@ -154,37 +155,6 @@ function findRoomRange(sheet, status_id, location) {
 
   return sheet.getRange(`${timeColumn}${timeRow}:${timeColumn}${timeRow + 8}`);
 
-}
-
-function findCellsOnSpreadsheet(status_id, location) {
-  // we have already weeded out rooms that do not exist
-  const cellCoords = {};
-
-  // if it's CH rooms 6 - 11, handle for the lower rows
-  if (status_id >= 29 && location === 'CH') {
-    cellCoords.row = 13;
-
-    // room 11 status id = 36, and it doesn't work the same as below
-    if (status_id === 36) {
-      cellCoords.column = 'H'
-    }
-
-    else cellCoords.column = String.fromCharCode(status_id + 38);
-  }
-
-  // else, coords are handled similarly at all locations
-  else {
-    cellCoords.row = 3;
-
-    // if it's room 1, put in column C
-    if (status_id === 18) {
-      cellCoords.column = 'C';
-    }
-
-    else cellCoords.column = String.fromCharCode(status_id + 43);
-    // 43 = status_id - correct column letter's CharCode
-  }
-  return cellCoords;
 }
 
 function getRoomColor(typeID, resourceID) {
@@ -244,7 +214,7 @@ function handleMultiplePetRoom(
 
   // if the incoming one isnt a tech or if the ones already there don't include a tech, make the background gray
   if (!curAnimalText.includes('TECH - ') || !incomingAnimalText.includes('TECH - ')) {
-    roomRange.setBackground('#f3f3f3');
+    roomRange.offset(0, 0, 8, 1).setBackground('#f3f3f3');
   }
 
   const webAddress = `${sitePrefix}/?recordclass=Contact&recordid=${contactID}`;
@@ -281,8 +251,10 @@ function fetch2(animalID) {
 }
 
 function deleteFromWaitlist(location, consultID) {
+  // console.log(`appointment ${appointment.id} at top of deleteFromWaitlist()`);
+  if (location === 'DT') return;
   const waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(`${location} Wait List`);
-  const patientNameRichText = waitlistSheet.getRange(`C7:D50`).getRichTextValues();
+  const patientNameRichText = waitlistSheet.getRange(`C7:D75`).getRichTextValues();
 
   const len = patientNameRichText.length;
 
@@ -292,6 +264,8 @@ function deleteFromWaitlist(location, consultID) {
       return waitlistSheet.deleteRow(i + 7);
     }
   }
+
+  // console.log(`appointment ${appointment.id} at bottom deleteFromWaitlist()`);
 
   return;
 }

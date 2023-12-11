@@ -25,59 +25,57 @@ function updateToken() {
   return;
 }
 
+// doPost version with lock service
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(60000);
+  lock.waitLock(300000);
+  // console.log('lock acquired');
 
   try {
-    let isARetry = false;
-    for (let n = 0; n < 5; n++) {
+    // if there's a simultaneous invocations error, we're going to implement exponential backoff
+    for (let tryIndex = 0; tryIndex < 5; tryIndex++) {
+      const params = JSON.parse(e.postData.contents);
+
       try {
-        handleWebhook(e, isARetry);
+        const apptItems = params?.items;
+        for (let itemsIndex = 0; itemsIndex < apptItems.length; itemsIndex++) {
+          const { appointment } = apptItems[itemsIndex];
+          handleAppointment(params.meta.event, appointment);
+        }
         return ContentService.createTextOutput("staus = 200 !!!!").setMimeType(ContentService.MimeType.JSON);
       }
+
       catch (error) {
         if (error.toString().includes('simultaneous invocations')) {
-          console.log("GASRetry " + n + ": " + error);
-          if (n === 4) {
+          console.log("GASRetry " + tryIndex + ": " + error);
+          if (tryIndex === 4) {
             throw error;
           }
-          Utilities.sleep((Math.pow(2, n) * 1000) + (Math.round(Math.random() * 1000)));
+          Utilities.sleep((Math.pow(2, tryIndex) * 1000) + (Math.round(Math.random() * 1000)));
         }
+
         else throw error;
       }
     }
   }
   catch (error) {
-    console.log('hit the outer catchblockerror');
+    // console.log('hit the outer catchblockerror');
     throw error;
   }
   finally {
     lock.releaseLock();
+    console.log('lock released')
   }
   return;
 }
 
 // handle webhook events
-function handleWebhook(e) {
-  // console.log('raw JSON: ', e.postData.contents);
-  const params = JSON.parse(e.postData.contents);
-  const last = params.items.length - 1;
-
-  if (!params.items[last] || !params.items[last].appointment) {
-    console.log('PARAMS ERROR: ', params);
-    return;
-  }
-
-  const appointment = params.items[last].appointment;
-
-  // console.log('HANDLE WEBHOOK: ', appointment)
-
+function handleAppointment(webhookType, appointment) {
   if (isTodayPST(appointment.start_at) && appointment.active) {
     const inARoom = ifRoomStatus(appointment.status_id);
 
     //  if it's an appointment_created webhook event
-    if (params.meta.event === "appointment_created") {
+    if (webhookType === "appointment_created") {
 
       // if it already has a status of being in a room
       if (inARoom) {
@@ -97,7 +95,7 @@ function handleWebhook(e) {
     }
 
     // or, if it's an appointment_updated webhook event (that's happening today)
-    // else if (params.meta.event === "appointment_updated") {
+    // else if (webhookType === "appointment_updated") {
     else {
       // if the appointment has a status of being in a room
       if (inARoom) {
@@ -136,6 +134,8 @@ function handleWebhook(e) {
     // }
 
   }
+
+  console.log(`not today or not active: ${appointment}`);
 
   return;
 }

@@ -1,20 +1,39 @@
 function addToWaitlist(appointment, animalInfoArray = undefined) {
-  // console.log('APPT ID: ', appointment.id, 'beginning of addToWaitlist()')
+  // console.log(`appointment ${appointment.id} at top of addToWaitlist()`);
 
   // grab correct location's waitlist sheet
   const sheetName = `${whichLocation(appointment.resources[0].id)} Wait List`;
+
+  // downtown doesnt have a waitlist anymore
+  if (sheetName === 'DT Wait List') {
+    console.log('returning from dt waitlist');
+    return;
+  }
+
   let waitlistSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  // console.log(`appointment ${appointment.id}: waitlist sheet grabbed`);
 
   const newRow = findHighestEmptyRow(waitlistSheet, appointment.consult_id);
   // the findHighestEmptyRow function only checks up to row 50. if all rows up to 50 are populated with something, dont do anything (return)
   if (!newRow) return;
+  // console.log(`appointment ${appointment.id}: highest empty row found, row ${newRow}`);
   const rowRange = waitlistSheet.getRange('B' + newRow + ':K' + newRow);
   rowRange.setBackground('#f3f3f3');
   rowRange.setBorder(true, true, true, true, true, true);
 
   // get info about animal to populate cells
-  const [animalName, animalSpecies] = animalInfoArray || getAnimalInfo(appointment.animal_id);
-  const lastName = getLastName(appointment.contact_id);
+  let animalName, animalSpecies, lastName;
+  if (!animalInfoArray) {
+    const { animalInfo, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
+    [animalName, animalSpecies] = animalInfo;
+    lastName = contactLastName;
+  }
+  else {
+    [animalName, animalSpecies] = animalInfoArray;
+    lastName = getLastName(appointment.contact_id);
+  }
+
+  // console.log(`appointment ${appointment.id}: completed fetches for animalname and lastname`);
 
   // populate time cell
   const timeCell = rowRange.offset(0, 0, 1, 1);
@@ -38,7 +57,8 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
   const ezyVetCell = rowRange.offset(0, 9, 1, 1);
   ezyVetCell.setDataValidation(createCheckbox()).setValue(true);
 
-  // console.log('APPT ID: ', appointment.id, 'bottom of addToWaitlist()')
+  // console.log(`appointment ${appointment.id}: populated all cells and at bottom of addToWaitlist()`);
+
   return;
 }
 

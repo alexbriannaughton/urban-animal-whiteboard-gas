@@ -1,5 +1,6 @@
 function addTechAppt(appointment) {
-  // grab correct location and sheet
+  // console.log(`appointment ${appointment.id} at top of addTechAppt()`);
+
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
@@ -23,11 +24,11 @@ function addTechAppt(appointment) {
     lastRow = 15;
   }
 
-  const [mainCell, mainRow] = findHighestEmptyCell(locationSheet, firstColumn, lastColumn, firstRow, lastRow);
+  const [ mainCell, mainRow ] = findHighestEmptyCell(locationSheet, firstColumn, lastColumn, firstRow, lastRow);
 
   if (!mainCell) return;
 
-  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
+  const [ animalName, animalSpecies ] = getAnimalInfo(appointment.animal_id);
 
   // populate main cell: name, species, reason... and make it a link
   const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
@@ -43,5 +44,7 @@ function addTechAppt(appointment) {
   const checkboxCell = mainCell.offset(0, checkboxOffsetColumn, 1, 1);
   checkboxCell.setDataValidation(createCheckbox()).setValue(true);
 
+  // console.log(`appointment ${appointment.id} at bottom of addTechAppt()`);
+  
   return;
 }
