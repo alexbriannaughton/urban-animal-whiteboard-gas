@@ -98,17 +98,15 @@ function getAnimalInfoAndLastName(animalID, contactID) {
   const animalJSON = animalResponse.getContentText();
   const parsedAnimal = JSON.parse(animalJSON);
   const animal = parsedAnimal.items.at(-1).animal;
-  const speciesID = animal.species_id;
-  let species = '';
-  if (speciesID === '1') species = 'K9';
-  else if (speciesID === '2') species = 'FEL';
-  const animalInfo = [animal.name, species];
+  const speciesMap = { 1: 'K9', 2: 'FEL' };
+  const animalSpecies = speciesMap[animal.species_id];
+  const animalName = animal.name;
 
   const contactJSON = contactResponse.getContentText();
   const parsedContact = JSON.parse(contactJSON);
   const contactLastName = parsedContact.items.at(-1).contact.last_name;
 
-  return { animalInfo, contactLastName }
+  return { animalSpecies, animalName, contactLastName }
 }
 
 function makeLink(text, webAddress) {

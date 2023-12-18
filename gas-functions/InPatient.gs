@@ -15,10 +15,7 @@ function addInPatient(appointment) {
     // in that case dont do anything
     if (!nameCell) return;
 
-    const {
-      animalInfo: [animalName, animalSpecies],
-      contactLastName: lastName
-    } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
+    const { animalName, animalSpecies, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
 
     // color the row gray
     locationSheet.getRange(`R${row}:W${row}`).setBackground('#f3f3f3');
@@ -26,7 +23,7 @@ function addInPatient(appointment) {
     populateInpatientRow(
       animalName,
       animalSpecies,
-      lastName,
+      contactLastName,
       appointment.consult_id,
       nameCell,
       row,
@@ -46,8 +43,7 @@ function addInPatient(appointment) {
 
     if (!nameCell) return;
 
-    const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-    const lastName = getLastName(appointment.contact_id);
+    const { animalName, animalSpecies, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
 
     // color the row cyan if dt and magenta if wc
     const fullRow = locationSheet.getRange(`B${row}:H${row}`);
@@ -59,7 +55,7 @@ function addInPatient(appointment) {
     populateInpatientRow(
       animalName,
       animalSpecies,
-      lastName,
+      contactLastName,
       appointment.consult_id,
       nameCell,
       row,

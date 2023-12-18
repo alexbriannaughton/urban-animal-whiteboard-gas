@@ -64,7 +64,7 @@ function doPost(e) {
   }
   finally {
     lock.releaseLock();
-    console.log('lock released')
+    // console.log('lock released');
   }
   return;
 }
@@ -135,16 +135,21 @@ function handleAppointment(webhookType, appointment) {
 
   }
 
-  console.log(`not today or not active: ${appointment}`);
+  console.log('not today or not active:', appointment);
 
   return;
 }
 
 // check if status ID has a room status
 function ifRoomStatus(statusID) {
-  return statusID === 18 ||
-    (statusID >= 25 && statusID <= 33) ||
-    statusID === 36;
+  // rooms two through ten are have status ids of 25 through 33
+  const roomsOtherThanTwoThroughTen = [
+    18, // room 1
+    36, // room 11,
+    39, // in dog lobby,
+    40, // in cat lobby
+  ]
+  return (statusID >= 25 && statusID <= 33) || roomsOtherThanTwoThroughTen.includes(statusID);
 }
 
 function fetchAndParse(url) {
