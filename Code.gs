@@ -21,18 +21,17 @@ function updateToken() {
   const json = response.getContentText();
   const newToken = JSON.parse(json).access_token;
   props.setProperty('ezyVet_token', `Bearer ${newToken}`);
-  console.log('TOKEN UPDATED: ', newToken);
   return;
 }
 
-// doPost version with lock service
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(300000);
-  // console.log('lock acquired');
 
   try {
-    // if there's a simultaneous invocations error, we're going to implement exponential backoff
+    // implement exponential backoff for:
+    // 'too many simultaneous invocations' error,which happens randomly
+    // and 'please wait a bit and try again' error, which happens on lock methods
     for (let tryIndex = 0; tryIndex < 5; tryIndex++) {
       const params = JSON.parse(e.postData.contents);
 
@@ -46,7 +45,8 @@ function doPost(e) {
       }
 
       catch (error) {
-        if (error.toString().includes('simultaneous invocations')) {
+        const errStr = error.toString();
+        if (errStr.includes('simultaneous invocations') || errStr.includes('try again')) {
           console.log("GASRetry " + tryIndex + ": " + error);
           if (tryIndex === 4) {
             throw error;
@@ -59,7 +59,7 @@ function doPost(e) {
     }
   }
   catch (error) {
-    // console.log('hit the outer catchblockerror');
+    console.log('hit the outer catchblockerror');
     throw error;
   }
   finally {
@@ -135,7 +135,7 @@ function handleAppointment(webhookType, appointment) {
 
   }
 
-  console.log('not today or not active:', appointment);
+  // console.log('not today or not active:', appointment);
 
   return;
 }
@@ -172,9 +172,4 @@ function fetchAndParse(url) {
 
   const json = response.getContentText();
   return JSON.parse(json);
-}
-
-function testAuth() {
-  const url = `${proxy}/v1/animal/67143`;
-  fetchAndParse(url);
 }

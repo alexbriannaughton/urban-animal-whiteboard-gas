@@ -25,19 +25,17 @@ function moveToRoom(appointment) {
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const { roomRange, incomingAnimalText, curPtCell } = parseTheRoom(sheet, appointment) || {};
+  const { roomRange, incomingAnimalText, ptCell } = parseTheRoom(sheet, appointment, location) || {};
 
+  // if room range actually comes back truthy then we are good to handle a regular empty room
   if (roomRange) {
-    handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalText, location, curPtCell)
+    handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalText, location, ptCell)
   }
 
   return;
 }
 
-function handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalText, location, curPtCell) {
-  console.log('from handlesingpetroom:  ')
-  console.log(roomRange)
-
+function handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalText, location, ptCell) {
   const bgColor = getRoomColor(appointment.type_id, resourceID);
   roomRange.offset(0, 0, 8, 1)
     .setBackground(bgColor);
@@ -49,7 +47,7 @@ function handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalT
   // name/species/link cell
   const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
   const link = makeLink(incomingAnimalText, webAddress);
-  curPtCell.setRichTextValue(link);
+  ptCell.setRichTextValue(link);
 
   // reason cell
   roomRange.offset(2, 0, 1, 1)
@@ -63,63 +61,63 @@ function handleSinglePetRoom(appointment, resourceID, roomRange, incomingAnimalT
   deleteFromWaitlist(location, appointment.consult_id);
 }
 
-function parseTheRoom(sheet, appointment, rangeForSecondCatLobbyColumn, curContactID) {
+function parseTheRoom(
+  sheet,
+  appointment,
+  location,
+  rangeForSecondCatLobbyColumn // will be undefined unless the first cat lobby column is unavailable
+) {
+
   const roomRange = !rangeForSecondCatLobbyColumn
-    ? findRoomRange(sheet, appointment.status_id)
+    ? findRoomRange(sheet, appointment.status_id, location)
     : rangeForSecondCatLobbyColumn;
-  const curPtCell = roomRange.offset(1, 0, 1, 1);
-  const curLink = curPtCell?.getRichTextValue()?.getLinkUrl();
+  const ptCell = roomRange.offset(1, 0, 1, 1);
+  const curLink = ptCell.getRichTextValue()?.getLinkUrl();
 
   // if this appointment is already in the room, don't worry about it
+  // we check this by comparing the link that's currently in the cell with the incoming appt's consult id
   if (curLink && curLink.includes(appointment.consult_id)) {
-    // we return deleteFromWaitlist bc there's a chance that this execution is a retry from too many simultaneous invocations
+    // we return deleteFromWaitlist bc there's a chance that this execution is an exponential backoff retry
     return deleteFromWaitlist(location, appointment.consult_id);
   }
 
   const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
-
   const incomingAnimalText = `${techText(appointment.type_id)}${animalName} (${animalSpecies})`;
 
   const roomValues = roomRange.getValues();
-  const curPtCellContent = roomValues[1][0];
 
-  // if the current patient name cell already has something in it
-  if (curPtCellContent) {
-    // if the current text in the patient cell is text without a link, don't do anything so we don't overwrite whatever is there
-    if (!curLink) {
+  // if the room range is not empty
+  if (!roomIsEmpty(roomValues)) {
+    if (
+      // if there's no link in  the pt cell we can't run our other checks
+      !curLink
+      // or, another check to see if the incoming appointment is already in the room, as multiple pet room will not carry the consult id
+      || roomValues[1][0].includes(incomingAnimalText)
+    ) {
       return stopMovingToRoom(appointment);
     }
 
-    // another check to see if it's already in the room, since multiple pet room will not carry the consult id
-    if (curPtCellContent.includes(incomingAnimalText)) return stopMovingToRoom(appointment);
-
     let alreadyMultiplePets = false;
+    let curContactID;
 
     // then, check if the animal currently in the room has the same contact ID as the incoming animal
-    // console.log('APPT ID: ', appointment.id, 'Before locating the contact ID')
     // first, grab the id at the end of the link
-    if (!curContactID) {
-      const curID = curLink.split('=')[2];
-      // if this link is a contact id, that means there are already multiple pets in this room
-      // therefore, we already have the contact id
-      if (curLink.includes('Contact')) {
-        curContactID = curID;
-        alreadyMultiplePets = true;
-      }
-      // otherwise there's only one pet, meaning the link contains the consult id
-      // which we'll use to find the contact id
-      else curContactID = getContactIDFromConsultID(curID);
-    }
+    const curID = curLink.split('=')[2];
 
+    // if this link contains a contact id, that means there are already multiple pets in this room
+    if (curLink.includes('Contact')) {
+      curContactID = curID;
+      alreadyMultiplePets = true;
+    }
+    else curContactID = getContactIDFromConsultID(curID); // otherwise this is a consult id. use it to get the contact ID
 
     // if that contact id matches the contact id of the appointment we're trying to move to this room, handle a multiple pet room
     if (parseInt(curContactID) === appointment.contact_id) {
-
       handleMultiplePetRoom(
         curContactID,
         appointment.description,
         incomingAnimalText,
-        curPtCell,
+        ptCell,
         alreadyMultiplePets,
         roomRange,
         roomValues,
@@ -134,14 +132,14 @@ function parseTheRoom(sheet, appointment, rangeForSecondCatLobbyColumn, curConta
     // and if we are checking the first cat lobby cell range
     if (appointment.status_id === 40 && roomRange.getColumn() === 8) {
       // we want to check the second cat lobby cell range
-      return parseTheRoom(sheet, appointment, sheet.getRange('I3:I11'), curContactID);
+      return parseTheRoom(sheet, appointment, location, sheet.getRange('I3:I11'));
     }
 
-    // otherwise dont move to room because the room is taken
+    // otherwise dont move to room because the room is not empty
     return stopMovingToRoom(appointment);
   }
 
-  return { roomRange, incomingAnimalText, curPtCell };
+  return { roomRange, incomingAnimalText, ptCell };
 }
 
 function roomIsEmpty(roomValues) {
@@ -153,32 +151,33 @@ function roomIsEmpty(roomValues) {
 }
 
 // note that we have already weeded out status ids >= 31 at DT and status ids >= 29 at WC earlier in moveToRoom()
-function findRoomRange(sheet, statusID) {
+function findRoomRange(sheet, statusID, location) {
   // we're finding the time cell to use as a starting place
 
-  // coords for rooms 1-5 CH and WC and 1-7 DT are handled similarly
-  let timeRow = 3
+  // all rooms at WC, all rooms at DT and rooms 1-5 at CH are handled similarly:
+  let timeRow = 3;
   let timeColumn = statusID === 18
-    ? 'C' : String.fromCharCode(statusID + 43);
-  // 43 = statusID minus the correct column letter's CharCode;
-  // this doesnt work for room 1 though (status id 18), so we would just assign that to 'C'
+    ? 'C' // for room one (status_id 18) just assign to column C
+    : String.fromCharCode(statusID + 43);  // otherwise, statusID minus the correct column letter's CharCode = 43;
 
+  // for the rest of the rooms at CH:
   // status ids for rooms 6 - 11 and dog/cat lobby statuses are 29 and greater
-  // (these are only handled for CH) bc they should already be weeded out if this is for DT OR WC
-  if (statusID >= 29) {
+  if (location === 'CH' && statusID >= 29) {
     // handle for cat or dog lobby statuses
     if (statusID === 40 || statusID === 39) {
-      timeRow = statusID === 40 ? 3 : 13;
-      timeColumn = statusID === 40 ? 'H' : 'I';
+      timeRow = statusID === 40
+        ? 3 : 13;
+      timeColumn = statusID === 40
+        ? 'H' : 'I';
     }
 
     // else we're handling for rooms 6 - 11
     else {
       timeRow = 13;
+      timeColumn = statusID === 36
+        ? 'H' // if room 11 (status id = 36), just assign to column H
+        : String.fromCharCode(statusID + 38); // otherwise, we can say that statusID minus the correct column letter's CharCode = 38
 
-      // if room 11 (status id = 36), just assign to room H
-      timeColumn = statusID === 36 ? 'H' : String.fromCharCode(statusID + 38);
-      // otherwise we can say that 38 = statusID minus the correct column letter's CharCode
     }
   }
 
@@ -211,7 +210,9 @@ function getRoomColor(typeID, resourceID) {
 }
 
 function techText(typeID) {
-  return typeID === 19 ? "TECH - " : "";
+  return typeID === 19 || typeID === 85
+    ? "TECH - "
+    : "";
 }
 
 function stopMovingToRoom(appointment) {
@@ -230,8 +231,7 @@ function handleMultiplePetRoom(
   ptCell,
   alreadyMultiplePets,
   roomRange,
-  roomValues,
-  appointment
+  roomValues
 ) {
   const curAnimalText = roomValues[1][0];
   const curAnimalReasonText = roomValues[2][0];
@@ -243,6 +243,7 @@ function handleMultiplePetRoom(
     roomRange.offset(0, 0, 8, 1).setBackground('#f3f3f3');
   }
 
+  // multiple pet room links take you to the owner's tab in ezyvet (the contact record)
   const webAddress = `${sitePrefix}/?recordclass=Contact&recordid=${contactID}`;
   const link = makeLink(newPtCellText, webAddress);
   ptCell.setRichTextValue(link);
@@ -269,7 +270,6 @@ function getContactIDFromConsultID(consultID) {
   const contactID = fetchAndParse(url2).items[0].animal.contact_id;
 
   return contactID;
-
 }
 
 function deleteFromWaitlist(location, consultID) {

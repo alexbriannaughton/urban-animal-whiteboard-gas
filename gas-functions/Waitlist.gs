@@ -1,4 +1,4 @@
-function addToWaitlist(appointment, animalInfoArray = undefined) {
+function addToWaitlist(appointment) {
   // console.log(`appointment ${appointment.id} at top of addToWaitlist()`);
 
   // grab correct location's waitlist sheet
@@ -6,7 +6,7 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
 
   // downtown doesnt have a waitlist anymore
   if (sheetName === 'DT Wait List') {
-    console.log('returning from dt waitlist');
+    // console.log('returning from dt waitlist');
     return;
   }
 
@@ -22,18 +22,9 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
   rowRange.setBorder(true, true, true, true, true, true);
 
   // get info about animal to populate cells
-  let animalName, animalSpecies, lastName;
-  if (!animalInfoArray) {
-    const { animalInfo, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
-    [animalName, animalSpecies] = animalInfo;
-    lastName = contactLastName;
-  }
-  else {
-    [animalName, animalSpecies] = animalInfoArray;
-    lastName = getLastName(appointment.contact_id);
-  }
+  const { animalSpecies, animalName, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
 
-  // console.log(`appointment ${appointment.id}: completed fetches for animalname and lastname`);
+  // console.log(`appointment ${appointment.id}: completed fetches for animalname and contactLastName`);
 
   // populate time cell
   const timeCell = rowRange.offset(0, 0, 1, 1);
@@ -41,7 +32,7 @@ function addToWaitlist(appointment, animalInfoArray = undefined) {
 
   // populate name cell
   const patientCell = rowRange.offset(0, 1, 1, 2).merge();
-  const patientText = `${animalName} ${lastName}`;
+  const patientText = `${animalName} ${contactLastName}`;
   const link = makeLink(patientText, `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`);
   patientCell.setRichTextValue(link);
 

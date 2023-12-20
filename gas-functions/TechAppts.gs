@@ -14,7 +14,7 @@ function addTechAppt(appointment) {
   else if (location === "DT") {
     firstColumn = 'M';
     lastColumn = 'M';
-    firstRow = 5;
+    firstRow = 3;
     lastRow = 11
   }
   else if (location === "WC") {
