@@ -1,10 +1,15 @@
 function handleReadyStatus(appointment) {
   const location = whichLocation(appointment.resources[0].id);
-  const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const readyCell = searchForRoomCell(location, locationSheet, appointment.consult_id, 3, appointment.contact_id);
+  const readyCell = findTargetCell(
+    location,
+    sheet,
+    appointment,
+    3 // number of rows down that the ready cell is from the patient cell
+  );
 
-  if (readyCell && readyCell.isBlank()) {
+  if (readyCell?.isBlank()) {
     const time = getTime(appointment.modified_at);
     const text = `ready@ ${time}`;
     readyCell.setValue(text);

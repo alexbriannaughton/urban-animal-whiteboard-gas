@@ -19,157 +19,68 @@ function updateToken() {
   };
   const response = UrlFetchApp.fetch(url, options);
   const json = response.getContentText();
-  const newToken = JSON.parse(json).access_token;
-  props.setProperty('ezyVet_token', `Bearer ${newToken}`);
-  return;
+  const dataObj = JSON.parse(json);
+  token = `${dataObj.token_type} ${dataObj.access_token}`;
+  props.setProperty('ezyVet_token', token);
+  return token;
 }
 
-function doPost(e) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(300000);
-
-  try {
-    // implement exponential backoff for:
-    // 'too many simultaneous invocations' error,which happens randomly
-    // and 'please wait a bit and try again' error, which happens on lock methods
-    for (let tryIndex = 0; tryIndex < 5; tryIndex++) {
-      const params = JSON.parse(e.postData.contents);
-
-      try {
-        const apptItems = params?.items;
-        for (let itemsIndex = 0; itemsIndex < apptItems.length; itemsIndex++) {
-          const { appointment } = apptItems[itemsIndex];
-          handleAppointment(params.meta.event, appointment);
-        }
-        return ContentService.createTextOutput("staus = 200 !!!!").setMimeType(ContentService.MimeType.JSON);
-      }
-
-      catch (error) {
-        const errStr = error.toString();
-        if (errStr.includes('simultaneous invocations') || errStr.includes('try again')) {
-          console.log("GASRetry " + tryIndex + ": " + error);
-          if (tryIndex === 4) {
-            throw error;
-          }
-          Utilities.sleep((Math.pow(2, tryIndex) * 1000) + (Math.round(Math.random() * 1000)));
-        }
-
-        else throw error;
-      }
-    }
+// receive webhooks
+function doPost(e) { // e = the webhook event
+  const params = JSON.parse(e.postData.contents);
+  const apptItems = params.items;
+  for (let itemsIndex = 0; itemsIndex < apptItems.length; itemsIndex++) {
+    const { appointment } = apptItems[itemsIndex];
+    handleAppointment(params.meta.event, appointment);
   }
-  catch (error) {
-    console.log('hit the outer catchblockerror');
-    throw error;
-  }
-  finally {
-    lock.releaseLock();
-    // console.log('lock released');
-  }
-  return;
+  return ContentService.createTextOutput("ok").setMimeType(ContentService.MimeType.JSON);
 }
 
-// handle webhook events
+// check if status ID is an appointment status for being in a room
+function isRoomStatus(statusID) {
+  // rooms two through ten are have status ids of 25 through 33
+  // the following status ids we also handle as if they are a room status
+  // 18, // room 1
+  // 36, // room 11,
+  // 39, // in dog lobby,
+  // 40, // in cat lobby
+
+  return (statusID >= 25 && statusID <= 33) || [18, 36, 39, 40].includes(statusID);
+}
+
+// handle the details we care about
 function handleAppointment(webhookType, appointment) {
   if (isTodayPST(appointment.start_at) && appointment.active) {
-    const inARoom = ifRoomStatus(appointment.status_id);
+
+    // if it has a room status (no matter the webhookType), move it to a room
+    if (isRoomStatus(appointment.status_id)) {
+      return moveToRoom(appointment);
+    }
 
     //  if it's an appointment_created webhook event
-    if (webhookType === "appointment_created") {
-
-      // if it already has a status of being in a room
-      if (inARoom) {
-        return moveToRoom(appointment);
-      }
-
-      // else, if it's a walk-in doctor visit
+    else if (webhookType === "appointment_created") {
       // appointment type 37 = walk in, appointment type 77 = new client walk in
-      else if (appointment.type_id === 37 || appointment.type_id === 77) {
-        return addToWaitlist(appointment);
-      }
+      if (appointment.type_id === 37 || appointment.type_id === 77) return addToWaitlist(appointment);
 
       // or, if it has a tech appointment type, add to tech appt column
-      else if (appointment.type_id === 19) {
-        return addTechAppt(appointment);
-      }
+      else if (appointment.type_id === 19) return addTechAppt(appointment);
     }
 
     // or, if it's an appointment_updated webhook event (that's happening today)
-    // else if (webhookType === "appointment_updated") {
-    else {
-      // if the appointment has a status of being in a room
-      if (inARoom) {
-        return moveToRoom(appointment);
-      }
-
-      // if it has a ready status
-      else if (appointment.status_id === 22) {
-        return handleReadyStatus(appointment);
-      }
+    else { // else if (webhookType === "appointment_updated") {
+      // status 22 = ready appointment status
+      if (appointment.status_id === 22) return handleReadyStatus(appointment);
 
       // 34 is inpatient status
-      else if (appointment.status_id === 34) {
-        return addInPatient(appointment);
-      }
+      else if (appointment.status_id === 34) return addInPatient(appointment);
 
       // 19 is ok to check out
-      else if (appointment.status_id === 19) {
-        return okToCheckOut(appointment);
-      }
+      else if (appointment.status_id === 19) return okToCheckOut(appointment);
 
       // 17 is 'on wait list'
-      else if (appointment.status_id === 17) {
-        return addToWaitlist(appointment);
-      }
+      else if (appointment.status_id === 17) return addToWaitlist(appointment);
     }
-
-    // we are not using the below assign dvm stuff. it is commented out everywhere else in the code too.
-    // if it is in a room or if it has a ready status, check if there's a doctor resource and assign that doctor to the room
-    // if (inARoom || appointment.status_id === 22) {
-    //   const dvmResourceIDs = [24, 25, 26, 1063, 35, 55, 1015, 39, 59, 1384, 65, 27];
-    //   // if it has a specific doctor resource, assign that doctor on the room
-    //   if (dvmResourceIDs.includes(appointment.resources[0].id)) {
-    //     assignDvm(appointment, inARoom);
-    //   }
-    // }
-
   }
-
-  // console.log('not today or not active:', appointment);
 
   return;
-}
-
-// check if status ID has a room status
-function ifRoomStatus(statusID) {
-  // rooms two through ten are have status ids of 25 through 33
-  const roomsOtherThanTwoThroughTen = [
-    18, // room 1
-    36, // room 11,
-    39, // in dog lobby,
-    40, // in cat lobby
-  ]
-  return (statusID >= 25 && statusID <= 33) || roomsOtherThanTwoThroughTen.includes(statusID);
-}
-
-function fetchAndParse(url) {
-  const options = {
-    muteHttpExceptions: true,
-    method: "GET",
-    headers: {
-      authorization: token
-    }
-  };
-
-  let response = UrlFetchApp.fetch(url, options);
-
-  if (response.getResponseCode() === 401) {
-    updateToken();
-    token = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
-    options.headers.authorization = token;
-    response = UrlFetchApp.fetch(url, options);
-  }
-
-  const json = response.getContentText();
-  return JSON.parse(json);
 }

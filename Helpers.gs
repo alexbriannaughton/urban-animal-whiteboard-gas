@@ -1,3 +1,24 @@
+// singular get request to ezyvet api that will grab a new token if we get a 401 reponse
+function fetchAndParse(url) {
+  const options = {
+    muteHttpExceptions: true,
+    method: "GET",
+    headers: {
+      authorization: token
+    }
+  };
+
+  let response = UrlFetchApp.fetch(url, options);
+
+  if (response.getResponseCode() === 401) {
+    options.headers.authorization = updateToken();
+    response = UrlFetchApp.fetch(url, options);
+  }
+
+  const json = response.getContentText();
+  return JSON.parse(json);
+}
+
 // check if utc timestamp is today in PST
 function isTodayPST(timestamp) {
   const date = new Date(timestamp * 1000); // convert timestamp to a date object
@@ -21,7 +42,7 @@ function getTime(timestamp) {
 
 // check which urban animal facility based on appointment resource id
 // note: webhooks send resourceIDs as numbers, but get requests for appointments send resourceIDs as strings
-// this function only works for numbers (webhooks)
+// this function only works for parsing webhooks (resourceIDs as numbers)
 function whichLocation(resourceID) {
   const resourceIDToLocationMap = new Map();
 
@@ -70,19 +91,17 @@ function whichLocation(resourceID) {
   return resourceIDToLocationMap.get(resourceID);
 }
 
-// store info from /animal endpoint
+// use fetchAndParse() to store pet name and species from /animal endpoint
 function getAnimalInfo(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`;
   const animal = fetchAndParse(url).items.at(-1).animal;
-  const speciesID = animal.species_id;
-
-  let species = '';
-  if (speciesID === '1') species = 'K9';
-  else if (speciesID === '2') species = 'FEL';
+  const speciesMap = { 1: 'K9', 2: 'FEL' };
+  const species = speciesMap[animal.species_id] || '';
 
   return [animal.name, species];
 }
 
+// use fetchAndParse() to store last name from /contact endpoint
 function getLastName(contactID) {
   const url = `${proxy}/v1/contact/${contactID}`;
   const lastName = fetchAndParse(url).items.at(-1).contact.last_name;
@@ -113,9 +132,7 @@ function getAnimalInfoAndLastName(animalID, contactID) {
   let [animalResponse, contactResponse] = UrlFetchApp.fetchAll([animalRequest, contactRequest]);
 
   if (animalResponse.getResponseCode() === 401 || contactResponse.getResponseCode() === 401) {
-    updateToken();
-    token = `${PropertiesService.getScriptProperties().getProperty('ezyVet_token')}`;
-    animalRequest.headers.authorization = token;
+    animalRequest.headers.authorization = updateToken();
     contactRequest.headers.authorization = token;
     [animalResponse, contactResponse] = UrlFetchApp.fetchAll([animalRequest, contactRequest]);
   }
@@ -124,91 +141,111 @@ function getAnimalInfoAndLastName(animalID, contactID) {
   const parsedAnimal = JSON.parse(animalJSON);
   const animal = parsedAnimal.items.at(-1).animal;
   const speciesMap = { 1: 'K9', 2: 'FEL' };
-  const animalSpecies = speciesMap[animal.species_id];
-  const animalName = animal.name;
+  const animalSpecies = speciesMap[animal.species_id] || '';
 
   const contactJSON = contactResponse.getContentText();
   const parsedContact = JSON.parse(contactJSON);
   const contactLastName = parsedContact.items.at(-1).contact.last_name;
 
-  return { animalSpecies, animalName, contactLastName }
+  return [animalSpecies, animal.name, contactLastName]
 }
 
 function makeLink(text, webAddress) {
-  const link = SpreadsheetApp.newRichTextValue()
+  return SpreadsheetApp
+    .newRichTextValue()
     .setText(text)
     .setLinkUrl(webAddress)
     .build();
-  return link;
 }
 
 function createCheckbox() {
-  return SpreadsheetApp.newDataValidation().requireCheckbox().setAllowInvalid(false).build();
+  return SpreadsheetApp
+    .newDataValidation()
+    .requireCheckbox()
+    .setAllowInvalid(false)
+    .build();
 }
 
-// findHighestEmptyCell() returns an array where array[0] = the highest empty cell and array[1] = its row number
-// currently used to:
-// add in patients manually, InPatient.gs
-// add tech appointments, TechAppts.gs
-// if firstCol != lastCol that means we're handling a merged cell
-// if there's no empty cell in whatever range youre searching through,
-// or if we find a link with the consult id already in this range
-// returns an empty array
-function findHighestEmptyCell(sheet, firstCol, lastCol, firstRow, lastRow, consultID) {
-  const range = sheet.getRange(`${firstCol}${firstRow}:${lastCol}${lastRow}`);
-  const rows = range.getValues();
-  const nameRichTexts = range.getRichTextValues();
-  let emptySpot;
+// for this appointments room, findTargetCell() returns the range object for the cell that we want to manipulate, i.e. the ready cell or the ok to checkout cell
+// returns undefined if we do not find a cell that contains a link with this appointments consult id or contact id
+function findTargetCell(
+  location,
+  sheet,
+  appointment,
+  targetCellRowsBelowMain // number of rows down that the target cell is from the patient cell
+) {
 
-  for (let i = 0; i < rows.length; i++) {
-    const ptCellText = rows[i][0];
+  const locationPtCellRanges = getLocationPtCellRanges(location, sheet);
 
-    if (!emptySpot && !ptCellText) {
-      emptySpot = [
-        range.offset(i, 0, 1, lastCol.charCodeAt(0) - firstCol.charCodeAt(0) + 1),
-        firstRow + i
-      ];
-    }
+  return checkLinksForID(
+    locationPtCellRanges,
+    appointment,
+    targetCellRowsBelowMain
+  );
 
-    if (consultID) {
-      const link = nameRichTexts[i][0].getLinkUrl();
-      if (link && link.includes(consultID)) return [];
-    }
-  }
-
-  return emptySpot || [];
 }
 
-// searches through all of a locations rooms, looking to match the consult id which is held inside each patient's link
-// returns the coords for cell that we want to manipulate
-function searchForRoomCell(location, sheet, consultID, distanceBelowMain, contactID) {
-  const possMainCoords = ['C4', 'D4', 'E4', 'F4', 'G4'];
+function getLocationPtCellRanges(location, sheet) {
+  // if location === 'WC', these are the only coords
+  const possCoords = ['C4:C4', 'D4:D4', 'E4:E4', 'F4:F4', 'G4:G4'];
 
-  if (location === 'DT') {
-    possMainCoords.push('H4', 'I4');
-  }
+  if (location === 'DT') possCoords.push('H4:H4', 'I4:I4');
+
   else if (location === 'CH') {
-    possMainCoords.push('H4', 'I4', 'C14', 'D14', 'E14', 'F14', 'G14', 'H14');
+    possCoords.push('H4:H4', 'I4:I4', 'C14:C14', 'D14:D14', 'E14:E14', 'F14:F14', 'G14:G14', 'H14:H14', 'I14:I14');
   }
 
-  let resCoords = checkLinksForID(possMainCoords, sheet, consultID, distanceBelowMain);
-
-  if (!resCoords) {
-    resCoords = checkLinksForID(possMainCoords, sheet, contactID, distanceBelowMain);
-  }
-
-  return resCoords ? sheet.getRange(resCoords) : undefined;
+  return sheet.getRangeList(possCoords).getRanges();
 }
 
-function checkLinksForID(possMainCoords, sheet, id, distanceBelowMain) {
-  for (let i = 0; i < possMainCoords.length; i++) {
-    const curCoords = possMainCoords[i];
-    const cell = sheet.getRange(curCoords);
-    const link = cell.getRichTextValue().getLinkUrl();
+function checkLinksForID(
+  locationPtCellRanges,
+  appointment,
+  targetCellRowsBelowMain
+) {
 
-    if (link && link.includes(id)) {
-      const row = parseInt(curCoords.slice(1)) + distanceBelowMain;
-      return `${curCoords[0]}${row}`;
+  for (let i = 0; i < locationPtCellRanges.length; i++) {
+    const ptCell = locationPtCellRanges[i];
+    const link = ptCell.getRichTextValue().getLinkUrl();
+
+    if (!link) continue;
+
+    if (foundCorrectRoom(link, appointment)) {
+      return ptCell.offset(targetCellRowsBelowMain, 0);
     }
   }
+
+}
+
+function foundCorrectRoom(link, appointment) {
+  const linkIDInfo = link.split('?')[1] // this is the query string
+    .split('&') // this is the params
+    .map((str) => str.split('=')[1]); // this is [idType, id]
+  const linkIDType = linkIDInfo[0];
+  const linkID = parseInt(linkIDInfo[1]);
+  return (linkIDType === 'Consult' && linkID === appointment.consult_id) || (linkIDType === 'Contact' && linkID === appointment.contact_id)
+}
+
+// findRowRange() returns the range for the highest unpopulated row within the given range
+// this will return undefined in 2 conditions:
+// 1 - there's already a link with this appointment's consult id within the range
+// (meaning the consult is already there, so we do want to populate it again)
+// 2 - theres no room to put anything in this range
+function findRowRange(range, consultID, keyToConsultID) {
+  const rowContents = range.getValues();
+  const patientNameRichText = range.getRichTextValues();
+  let emptyRowRange;
+
+  for (let i = 0; i < rowContents.length; i++) {
+    const link = patientNameRichText[i][keyToConsultID].getLinkUrl();
+    // if we find that one of the patient cell links has the consult id, that means it's already on the waitlist, so return undefined
+    if (link?.includes(consultID)) return;
+
+    // if we haven't already found the highest empty row and every item within this rowContents array is falsy, this is the highest empty row
+    if (!emptyRowRange && rowContents[i].every(cellContents => !cellContents)) {
+      emptyRowRange = range.offset(i, 0, 1)
+    }
+  }
+
+  return emptyRowRange;
 }

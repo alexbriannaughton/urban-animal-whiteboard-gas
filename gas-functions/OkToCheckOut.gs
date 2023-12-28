@@ -2,11 +2,16 @@ function okToCheckOut(appointment) {
   const location = whichLocation(appointment.resources[0].id);
   const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  const okCheckbox = searchForRoomCell(location, locationSheet, appointment.consult_id, 5, appointment.contact_id);
+  const okCheckbox = findTargetCell(
+    location,
+    locationSheet,
+    appointment,
+    5 // number of rows down that the 'ok to check out' cell is from the patient cell
+  );
 
-  if (!okCheckbox) return;
+  if (!okCheckbox || okCheckbox.getValue()) return;
 
-  okCheckbox.setValue(true);
+  okCheckbox.setDataValidation(createCheckbox()).setValue(true);
 
   return;
 }

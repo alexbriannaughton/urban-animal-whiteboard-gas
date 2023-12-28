@@ -1,37 +1,21 @@
 function addTechAppt(appointment) {
-  // console.log(`appointment ${appointment.id} at top of addTechAppt()`);
-
   const location = whichLocation(appointment.resources[0].id);
-  const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  let firstColumn, lastColumn, firstRow, lastRow;
-  if (location === 'CH') {
-    firstColumn = 'L';
-    lastColumn = 'N';
-    firstRow = 6;
-    lastRow = 21;
-  }
-  else if (location === "DT") {
-    firstColumn = 'M';
-    lastColumn = 'M';
-    firstRow = 3;
-    lastRow = 11
-  }
-  else if (location === "WC") {
-    firstColumn = 'L';
-    lastColumn = 'L'
-    firstRow = 4;
-    lastRow = 15;
-  }
+  let techApptRange;
+  if (location === 'CH') techApptRange = sheet.getRange('K6:P21');
+  else if (location === "DT") techApptRange = sheet.getRange('L3:O11');
+  else if (location === "WC") techApptRange = sheet.getRange('K4:N12');
 
-  const [ mainCell, mainRow ] = findHighestEmptyCell(locationSheet, firstColumn, lastColumn, firstRow, lastRow);
+  const rowRange = findRowRange(techApptRange, appointment.consult_id, 1);
+  if (!rowRange) return;
 
-  if (!mainCell) return;
+  const [animalName, animalSpecies] = getAnimalInfo(appointment.animal_id);
 
-  const [ animalName, animalSpecies ] = getAnimalInfo(appointment.animal_id);
+  const mainCell = rowRange.offset(0, 1, 1);
 
   // populate main cell: name, species, reason... and make it a link
-  const text = `${animalName} (${animalSpecies}), ${appointment.description}`;
+  const text = `${animalName} (${animalSpecies}): ${appointment.description}`;
   const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
   const link = makeLink(text, webAddress);
   mainCell.setRichTextValue(link);
@@ -40,11 +24,8 @@ function addTechAppt(appointment) {
   mainCell.offset(0, -1, 1, 1).setValue(getTime(appointment.created_at));
 
   // check the ezyVet checkbox
-  const checkboxOffsetColumn = lastColumn.charCodeAt(0) - firstColumn.charCodeAt(0) + 2;
-  const checkboxCell = mainCell.offset(0, checkboxOffsetColumn, 1, 1);
+  const checkboxCell = rowRange.offset(0, rowRange.getNumColumns() - 1, 1, 1);
   checkboxCell.setDataValidation(createCheckbox()).setValue(true);
 
-  // console.log(`appointment ${appointment.id} at bottom of addTechAppt()`);
-  
   return;
 }

@@ -1,66 +1,27 @@
+const inpatientDefaultColorMap = new Map([
+  ['CH', '#f3f3f3'], // gray for cap hill
+  ['DT', '#d0e0e3'], // cyan for downtown
+  ['WC', '#ead1dc'] // magenta for white center
+]);
+
 // for manually adding to in patient column based on changing an appointment to inpatient status in ezyvet
 function addInPatient(appointment) {
   const location = whichLocation(appointment.resources[0].id);
-  const locationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  if (location === 'CH') {
-    // arguments for findHighestEmptyCell:
-    // R - S is the merged cell where the name/link is inputted
-    // in patient box is from row 3 to 23
-    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'R', 'S', 3, 36, appointment.consult_id);
+  const inpatientRangeCoords = location === 'CH'
+    ? 'R3:W36' // coords for cap hills inpatient box
+    : 'B14:H42'; // coords for dt and wc inpatient boxes
+  const inpatientBoxRange = sheet.getRange(inpatientRangeCoords);
+  const rowRange = findRowRange(inpatientBoxRange, appointment.consult_id, 0);
 
-    // if name cell doesnt exist that means there's no room in the in patient box.
-    // in that case dont do anything
-    if (!nameCell) return;
+  if (!rowRange) return;
 
-    const { animalName, animalSpecies, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
+  rowRange.setBackground(
+    inpatientDefaultColorMap.get(location)
+  );
 
-    // color the row gray
-    locationSheet.getRange(`R${row}:W${row}`).setBackground('#f3f3f3');
-
-    populateInpatientRow(
-      animalName,
-      animalSpecies,
-      contactLastName,
-      appointment.consult_id,
-      nameCell,
-      row,
-      locationSheet,
-      appointment.description,
-      // dvm,
-      ['U', 'V']
-    );
-  }
-
-  else {
-    // else, its either at DT or WC and their inpatient box is in the same cell coordinates
-    const [nameCell, row] = findHighestEmptyCell(locationSheet, 'B', 'C', 14, 42, appointment.consult_id);
-
-    if (!nameCell) return;
-
-    const { animalName, animalSpecies, contactLastName } = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
-
-    // color the row cyan if dt and magenta if wc
-    const fullRow = locationSheet.getRange(`B${row}:H${row}`);
-    if (location === 'DT') {
-      fullRow.setBackground('#d0e0e3')
-    }
-    else fullRow.setBackground('#ead1dc')
-
-    populateInpatientRow(
-      animalName,
-      animalSpecies,
-      contactLastName,
-      appointment.consult_id,
-      nameCell,
-      row,
-      locationSheet,
-      appointment.description,
-      // dvm
-    );
-  }
-
-  // console.log(`appointment ${appointment.id} at bottom of addInPatient()`);
+  populateInpatientRow(appointment, rowRange);
 
   return;
 }
@@ -120,18 +81,11 @@ function addScheduledProcedures(
   procedureArr,
   location,
   nameCols = ['B', 'C'],
-  row = 14,
-  reasonCols = ['E', 'F']
+  row = 14
 ) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
   clearInPatientBox(sheet, location);
-
-  const defaultColorMap = new Map([
-    ['CH', '#f3f3f3'],
-    ['DT', '#d0e0e3'],
-    ['WC', '#ead1dc']
-  ]);
 
   for (let i = 0; i < procedureArr.length; i++) {
     const procedure = procedureArr[i];
@@ -140,28 +94,10 @@ function addScheduledProcedures(
     if (!procedure.animal_id) continue;
 
     const lastCol = location === 'CH' ? 'W' : 'H';
-    sheet.getRange(`${nameCols[0]}${row}:${lastCol}${row}`)
-      .setBackground(procedure.color || defaultColorMap.get(location));
+    const rowRange = sheet.getRange(`${nameCols[0]}${row}:${lastCol}${row}`);
+    rowRange.setBackground(procedure.color || inpatientDefaultColorMap.get(location));
 
-    const [animalName, animalSpecies] = getAnimalInfo(procedure.animal_id);
-    const lastName = getLastName(procedure.contact_id);
-
-    const nameCell = sheet.getRange(`${nameCols[0]}${row}:${nameCols[1]}${row}`);
-
-    // const dvm = getDvm(procedure.resource_list[0], sheet);
-
-    populateInpatientRow(
-      animalName,
-      animalSpecies,
-      lastName,
-      procedure.consult_id,
-      nameCell,
-      row,
-      sheet,
-      procedure.description,
-      // dvm,
-      reasonCols
-    );
+    populateInpatientRow(procedure, rowRange);
 
     row++;
   }
@@ -169,28 +105,17 @@ function addScheduledProcedures(
   return;
 }
 
-function populateInpatientRow(
-  animalName,
-  animalSpecies,
-  lastName,
-  consultID,
-  nameCell,
-  row,
-  locationSheet,
-  description,
-  // dvm,
-  reasonCols = ['E', 'F']
-) {
-  const text = `${animalName} ${lastName} (${animalSpecies})`;
-  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${consultID}`;
+function populateInpatientRow(appointment, rowRange) {
+  const [animalName, animalSpecies, contactLastName] = getAnimalInfoAndLastName(appointment.animal_id, appointment.contact_id);
+
+  const nameCell = rowRange.offset(0, 0, 1, 1);
+  const text = `${animalName} ${contactLastName} (${animalSpecies})`;
+  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`;
   const link = makeLink(text, webAddress);
   nameCell.setRichTextValue(link);
 
-  const reasonCell = locationSheet.getRange(`${reasonCols[0]}${row}:${reasonCols[1]}${row}`);
-  reasonCell.setValue(description);
-
-  // const dvmColumn = String.fromCharCode((reasonCols[0].charCodeAt(0) - 1));
-  // if (dvm) locationSheet.getRange(`${dvmColumn}${row}`).setValue(dvm);
+  const reasonCell = rowRange.offset(0, 3, 1, 1);
+  reasonCell.setValue(appointment.description);
 
   return;
 }
@@ -207,8 +132,7 @@ function clearInPatientBox(sheet, location) {
     color = '#ead1dc';
     inpatientBox = sheet.getRange('B14:H42');
   }
-  // else if location === 'DT'
-  else {
+  else { // else if location === 'DT'
     color = '#d0e0e3';
     inpatientBox = sheet.getRange('B14:H42');
   }
