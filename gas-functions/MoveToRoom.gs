@@ -12,11 +12,10 @@
 // status 40 = cat lobby = CH cells: H3, H4, H5 & I3, I4, I5
 // status 39 = dog lobby = CH cells: I13, I14, I15
 function moveToRoom(appointment) {
-  const resourceID = appointment.resources[0].id;
-  const location = whichLocation(resourceID);
+  const location = whichLocation(appointment.resources[0].id);
 
   // if we're moving into a room that doesn't exist... don't do that
-  if (appointment.status_id >= 31 && location === 'DT' || appointment.status_id >= 29 && location === 'WC') {
+  if ((appointment.status_id >= 31 && location === 'DT') || (appointment.status_id >= 29 && location === 'WC')) {
     return stopMovingToRoom(appointment);
   }
 
@@ -25,16 +24,16 @@ function moveToRoom(appointment) {
   const [roomRange, incomingAnimalText, ptCell] = parseTheRoom(sheet, appointment, location) || [];
 
   // if parseTheRoom returns us a truthy roomRange, we're good to handle a normal, empty room
-  if (roomRange) populateEmptyRoom(appointment, resourceID, roomRange, incomingAnimalText, location, ptCell);
+  if (roomRange) populateEmptyRoom(appointment, roomRange, incomingAnimalText, location, ptCell);
 
   return;
 }
 
-function populateEmptyRoom(appointment, resourceID, roomRange, incomingAnimalText, location, ptCell) {
+function populateEmptyRoom(appointment, roomRange, incomingAnimalText, location, ptCell) {
   // set bg color of entire room
   roomRange.offset(0, 0, 8, 1)
     .setBackground(
-      getRoomColor(appointment.type_id, resourceID)
+      getRoomColor(appointment.type_id, appointment.resources[0].id)
     );
 
   // time cell
@@ -80,7 +79,7 @@ function parseTheRoom(
     ? findRoomRange(sheet, appointment.status_id, location)
     : rangeForSecondCatLobbyColumn;
   const ptCell = roomRange.offset(1, 0, 1, 1);
-  const curLink = ptCell.getRichTextValue()?.getLinkUrl();
+  const curLink = ptCell.getRichTextValue().getLinkUrl();
 
   // if this appointment is already in the room, don't worry about it
   // we check this by comparing the link that's currently in the cell with the incoming appt's consult id

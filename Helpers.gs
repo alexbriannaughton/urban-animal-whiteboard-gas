@@ -91,6 +91,18 @@ function whichLocation(resourceID) {
   return resourceIDToLocationMap.get(resourceID);
 }
 
+// check if status ID is an appointment status for being in a room
+function isRoomStatus(statusID) {
+  // rooms two through ten are have status ids of 25 through 33
+  // the following status ids we also handle as if they are a room status
+  // 18, // room 1
+  // 36, // room 11,
+  // 39, // in dog lobby,
+  // 40, // in cat lobby
+
+  return (statusID >= 25 && statusID <= 33) || [18, 36, 39, 40].includes(statusID);
+}
+
 // use fetchAndParse() to store pet name and species from /animal endpoint
 function getAnimalInfo(animalID) {
   const url = `${proxy}/v1/animal/${animalID}`;

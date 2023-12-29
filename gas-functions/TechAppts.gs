@@ -2,10 +2,13 @@ function addTechAppt(appointment) {
   const location = whichLocation(appointment.resources[0].id);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(location);
 
-  let techApptRange;
-  if (location === 'CH') techApptRange = sheet.getRange('K6:P21');
-  else if (location === "DT") techApptRange = sheet.getRange('L3:O11');
-  else if (location === "WC") techApptRange = sheet.getRange('K4:N12');
+  const techBoxCoordsMap = new Map([
+    ['CH', 'K6:P21'],
+    ['DT', 'L3:O11'],
+    ['WC', 'K4:N12']
+  ]);
+  const techBoxCoords = techBoxCoordsMap.get(location);
+  const techApptRange = sheet.getRange(techBoxCoords);
 
   const rowRange = findRowRange(techApptRange, appointment.consult_id, 1);
   if (!rowRange) return;

@@ -26,10 +26,8 @@ function addToWaitlist(appointment) {
   // populate name cell
   const patientCell = rowRange.offset(0, 1, 1, 2).merge();
   const patientText = `${animalName} ${contactLastName}`;
-  const link = makeLink(
-    patientText,
-    `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`
-  );
+  const webAddress = `${sitePrefix}/?recordclass=Consult&recordid=${appointment.consult_id}`
+  const link = makeLink(patientText, webAddress);
   patientCell.setRichTextValue(link);
 
   // populate cat or dog dropdown

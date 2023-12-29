@@ -3,6 +3,7 @@ const proxy = 'https://api.ezyvet.com';
 const sitePrefix = 'https://urbananimalnw.usw2.ezyvet.com';
 
 function updateToken() {
+  console.log('updating token');
   const url = `${proxy}/v2/oauth/access_token`;
   const props = PropertiesService.getScriptProperties();
   const payload = {
@@ -29,57 +30,64 @@ function updateToken() {
 function doPost(e) { // e = the webhook event
   const params = JSON.parse(e.postData.contents);
   const apptItems = params.items;
-  for (let itemsIndex = 0; itemsIndex < apptItems.length; itemsIndex++) {
-    const { appointment } = apptItems[itemsIndex];
+  for (let i = 0; i < apptItems.length; i++) {
+    const { appointment } = apptItems[i];
     handleAppointment(params.meta.event, appointment);
   }
   return ContentService.createTextOutput("ok").setMimeType(ContentService.MimeType.JSON);
 }
 
-// check if status ID is an appointment status for being in a room
-function isRoomStatus(statusID) {
-  // rooms two through ten are have status ids of 25 through 33
-  // the following status ids we also handle as if they are a room status
-  // 18, // room 1
-  // 36, // room 11,
-  // 39, // in dog lobby,
-  // 40, // in cat lobby
-
-  return (statusID >= 25 && statusID <= 33) || [18, 36, 39, 40].includes(statusID);
-}
-
 // handle the details we care about
 function handleAppointment(webhookType, appointment) {
-  if (isTodayPST(appointment.start_at) && appointment.active) {
+  if (!isTodayPST(appointment.start_at) || !appointment.active) return;
 
-    // if it has a room status (no matter the webhookType), move it to a room
-    if (isRoomStatus(appointment.status_id)) {
-      return moveToRoom(appointment);
-    }
+  const apptStatusID = appointment.status_id;
 
-    //  if it's an appointment_created webhook event
-    else if (webhookType === "appointment_created") {
-      // appointment type 37 = walk in, appointment type 77 = new client walk in
-      if (appointment.type_id === 37 || appointment.type_id === 77) return addToWaitlist(appointment);
+  // if it has a room status (no matter the webhookType), move it to a room
+  if (isRoomStatus(apptStatusID)) return moveToRoom(appointment);
 
-      // or, if it has a tech appointment type, add to tech appt column
-      else if (appointment.type_id === 19) return addTechAppt(appointment);
-    }
+  else if (webhookType === "appointment_created") {
+    return handleCreatedAppointment(appointment);
+  }
+  else if (webhookType === "appointment_updated") {
+    return handleUpdatedAppointment(appointment, apptStatusID);
+  }
 
-    // or, if it's an appointment_updated webhook event (that's happening today)
-    else { // else if (webhookType === "appointment_updated") {
-      // status 22 = ready appointment status
-      if (appointment.status_id === 22) return handleReadyStatus(appointment);
+  return;
+}
 
-      // 34 is inpatient status
-      else if (appointment.status_id === 34) return addInPatient(appointment);
+function handleCreatedAppointment(appointment) {
+  const apptTypeID = appointment.type_id;
 
-      // 19 is ok to check out
-      else if (appointment.status_id === 19) return okToCheckOut(appointment);
+  // appointment type 37 is a walk in and appointment type 77 is a new client walk in
+  if (apptTypeID === 37 || apptTypeID === 77) {
+    return addToWaitlist(appointment);
+  }
 
-      // 17 is 'on wait list'
-      else if (appointment.status_id === 17) return addToWaitlist(appointment);
-    }
+  // appointment type 19 is a tech appointment
+  else if (apptTypeID === 19) {
+    return addTechAppt(appointment);
+  }
+
+  return;
+}
+
+function handleUpdatedAppointment(appointment, apptStatusID) {
+  // status id 17 is 'on wait list'
+  if (apptStatusID === 17) {
+    return addToWaitlist(appointment);
+  }
+  // status id 19 is 'ok to check out'
+  else if (apptStatusID === 19) {
+    return okToCheckOut(appointment);
+  }
+  // status 22 is 'ready' appointment status
+  else if (apptStatusID === 22) {
+    return handleReadyStatus(appointment);
+  }
+  // status id 34 is 'inpatient' status
+  else if (apptStatusID === 34) {
+    return addInPatient(appointment);
   }
 
   return;
